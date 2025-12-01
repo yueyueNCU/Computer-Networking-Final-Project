@@ -1,3 +1,7 @@
+# 採用技術
+### 前端: Vue + Typescript
+### 後端: FastAPI 
+
 # 規章
 ## 採用開發流程 (Extreme Programming)
 TDD (Test-Driven Development)，測試是確保產品穩定的基石

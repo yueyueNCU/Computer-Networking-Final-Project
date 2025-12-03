@@ -1,55 +1,60 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-// 直接引入隊友寫好的 Type 定義
+import { ref, computed, onMounted } from 'vue';
 import type { SeatDetail } from '../types/RestaurantApi';
+// 引入剛剛寫好的 Service
+import { seatService } from '../services/seatService';
 
-// --- 1. 模擬資料 (Mock Data) ---
-// 使用 SeatDetail 這個介面來規範資料格式
-const seats = ref<SeatDetail[]>([
-  { table_id: 1, label: "1 桌", x: 1, y: 1, status: 'eating' },
-  { table_id: 2, label: "2 桌", x: 2, y: 1, status: 'empty' },
-  { table_id: 3, label: "3 桌", x: 3, y: 1, status: 'eating' },
-  { table_id: 4, label: "4 桌", x: 4, y: 1, status: 'eating' },
-  { table_id: 5, label: "5 桌", x: 1, y: 2, status: 'eating' },
-  { table_id: 6, label: "6 桌", x: 2, y: 2, status: 'eating' },
-  { table_id: 7, label: "7 桌", x: 4, y: 2, status: 'empty' },
-]);
-
-// 模擬下一個排隊號碼
+// --- 1. 資料變數 (這裡改成空陣列，等待資料載入) ---
+const seats = ref<SeatDetail[]>([]); 
 const nextQueueNumber = ref(106);
 
-// --- 2. 彈窗控制 (UI 狀態) ---
-const showModal = ref(false);
-const selectedSeat = ref<SeatDetail | null>(null);  // 暫存目前被點擊的是哪一張桌子
+// --- 2. 生命週期 Hooks ---
+// 當這個 html 骨架被掛載到畫面上時，自動執行
+onMounted(async () => {
+  // 3. 呼叫 Service (關鍵協作點！)
+  // await 的意思是：「暫停在這裡，等 seatService.getSeats 做完再往下走」
+  // 這時候 JavaScript 引擎會去跑 service 裡的 setTimeout，0.5秒後回來
+  seats.value = await seatService.getSeats(1);
+});
 
-// 處理點擊座位
+// --- 3. 彈窗控制 ---
+const showModal = ref(false);
+const selectedSeat = ref<SeatDetail | null>(null);
+
 const handleSeatClick = (seat: SeatDetail) => {
   selectedSeat.value = seat;
   showModal.value = true;
 };
 
-// 關閉彈窗
 const closeModal = () => {
   showModal.value = false;
   selectedSeat.value = null;
 };
 
-// 執行動作：清桌 或 帶位
-const confirmAction = () => {
+// --- 4. 修改後的確認動作 (加入 Service 呼叫) ---
+const confirmAction = async () => {
   if (!selectedSeat.value) return;
 
-  if (selectedSeat.value.status === 'eating') {
-    // 如果現在是用餐中 -> 改為空桌 (清桌)
-    selectedSeat.value.status = 'empty';
+  // 1. 先決定新狀態是什麼
+  const newStatus = selectedSeat.value.status === 'eating' ? 'empty' : 'eating';
+  
+  // 2. 呼叫 Service 通知後端 (雖然現在是假的，但結構是對的)
+  // 這裡用了 await，代表會等後端回應成功後，才繼續往下執行
+  const success = await seatService.updateTableStatus(selectedSeat.value.table_id, newStatus);
+
+  // 3. 如果後端說 OK，前端才更新畫面
+  if (success) {
+    selectedSeat.value.status = newStatus;
+    
+    if (newStatus === 'eating') {
+      nextQueueNumber.value++;
+    }
+    closeModal();
   } else {
-    // 如果現在是空桌 -> 改為用餐中 (帶位)
-    selectedSeat.value.status = 'eating';
-    nextQueueNumber.value++; // 號碼牌往後跳一號
+    alert("更新失敗，請稍後再試");
   }
-  closeModal();
 };
 
-// 計算彈窗標題
 const modalTitle = computed(() => {
   if (!selectedSeat.value) return '';
   return selectedSeat.value.status === 'eating' ? '即將清桌' : '即將帶位';

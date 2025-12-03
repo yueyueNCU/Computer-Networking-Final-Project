@@ -1,11 +1,19 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+// 引入剛剛寫好的座位圖組件
+import SeatMap from './components/SeatMap.vue'
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <main>
+    <SeatMap />
+  </main>
 </template>
 
-<style scoped></style>
+<style>
+/* 重置瀏覽器的預設邊距，讓畫面滿版 */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+</style>

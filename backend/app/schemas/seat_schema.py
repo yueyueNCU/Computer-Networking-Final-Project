@@ -26,7 +26,6 @@ class UpdateTableStatusRequest(BaseModel):
 
 class UpdateTableStatusResponse(BaseModel):
     """POST /api/tables/{table_id}/status 回應"""
-    success: bool
     table_id: int 
     new_status: SeatStatus
     updated_at: datetime # Pydantic 可以自動將 ISO 8601 字串解析為 datetime 物件

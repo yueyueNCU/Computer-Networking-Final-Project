@@ -30,6 +30,12 @@
     pip freeze > requirements.txt
     ```
 
+## 執行pytest測試
+```
+cd backend
+python -m pytest
+```
+
 # 前端
 <!-- npm init vue@latest frontend -->
 1. 先下載Node.js

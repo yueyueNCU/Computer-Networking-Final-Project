@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional,Tuple
 from app.schemas.queue_schema import QueueStatusResponse,JoinQueueResponse, QueueNextResponse
 
+
 class IQueueService(ABC):
     @abstractmethod
     def join_restaurant_waiting_queue(self, restaurant_id: int, user_id: int) -> JoinQueueResponse:

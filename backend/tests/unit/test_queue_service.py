@@ -209,7 +209,6 @@ def test_get_queue_status_restaurant_not_found():
 
 
 
-
 """"""
 # 測試取得餐廳叫號資訊成功案例--隊伍中 有人 在排這家餐廳
 def test_get_queue_next_success():

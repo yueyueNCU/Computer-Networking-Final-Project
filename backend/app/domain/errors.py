@@ -28,3 +28,4 @@ class RestaurantNotFoundError(DomainError):
 class NotInQueueError(DomainError):
     def __init__(self, message: str = "User is not in queue."):
         super().__init__("NOT_IN_QUEUE", message)
+

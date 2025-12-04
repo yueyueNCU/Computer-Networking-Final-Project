@@ -26,5 +26,6 @@ class RestaurantNotFoundError(DomainError):
         super().__init__("RESTAURANT_NOT_FOUND", "Restaurant does not exist.")
 
 class NotInQueueError(DomainError):
-    def __init__(self):
-        super().__init__("NOT_IN_QUEUE", "User is not in queue.")
+    def __init__(self, message: str = "User is not in queue."):
+        super().__init__("NOT_IN_QUEUE", message)
+

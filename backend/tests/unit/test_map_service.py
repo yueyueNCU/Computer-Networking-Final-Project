@@ -2,9 +2,14 @@
 import pytest
 from unittest.mock import MagicMock
 from app.services.map_service import MapService
+## yueyue
+## MapRepository 仔細檢查 ，應該要是用interface的，可以參考我的queue unit test的寫法
 from app.repositories.map_repo import MapRepository
 from app.schemas.map_schema import RestaurantItem
 
+## yueyue
+## 這邊真的有點怪異
+## MagicMock() 應該要去參考IMapRepository
 def test_get_restaurants():
     # 1. Arrange (準備假資料)
     mock_repo = MagicMock()

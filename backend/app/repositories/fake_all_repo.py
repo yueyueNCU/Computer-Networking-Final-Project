@@ -15,6 +15,29 @@ class MemoryMapRepository(IMapRepository):
             "restaurant_name": f"測試餐廳 No.{restaurant_id}",
             "address": "虛擬記憶體路 123 號"
         }
+    def get_nearby_restaurants(self, lat: float, lng: float, radius: int) -> list:
+        return [
+            {
+                "restaurant_id": 2,
+                "restaurant_name": "麥克小姐",
+                "lat": 24.968,
+                "lng": 121.192,
+                "image_url": "https://example.com/burger.jpg",
+                "average_price": "150-300",
+                "specialties": "義大利麵、漢堡",
+                "status": "green"
+            },
+            {
+                "restaurant_id": 3,
+                "restaurant_name": "歐姆萊斯",
+                "lat": 24.970,
+                "lng": 121.195,
+                "image_url": "https://example.com/rice.jpg",
+                "average_price": "80-150",
+                "specialties": "咖哩、豬排飯",
+                "status": "red"
+            }
+        ]
 
 # --- 2. 模擬 Queue Repository (排隊資料) ---
 class MemoryQueueRepository(IQueueRepository):

@@ -16,6 +16,9 @@ class IMapRepository(ABC):
         """
         pass
 
+    ##　yueyue    
+    ## 這邊你可以自己去定義優，如果你還需要其他Function，比如說把全部的餐廳撈出來的function優(像是get_nearby_restaurants function ，當然要沒有lat,lng參數的版本)
+
 """
 以下是Restaurant表格，可參考
 

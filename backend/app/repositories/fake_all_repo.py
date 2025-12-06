@@ -2,6 +2,8 @@ from typing import Optional, List, Dict, Tuple
 from app.interfaces.queue_interface import IQueueRepository, IQueueRuntimeRepository
 from app.interfaces.map_interface import IMapRepository
 from app.services.queue_service import QueueService
+from app.schemas.table_schema import RestaurantSeatsResponse, TableDetail
+from datetime import datetime
 
 # --- 1. 模擬 Map Repository (餐廳資訊) ---
 class MemoryMapRepository(IMapRepository):
@@ -96,3 +98,35 @@ def get_memory_queue_service() -> QueueService:
         queue_runtime_repo=_mock_runtime_repo,
         map_repo=_mock_map_repo
     )
+
+class MemoryTableRepository:
+    def __init__(self):
+        # Key: restaurant_id, Value: RestaurantSeatsResponse
+        self.data = {}
+        self._init_mock_data()
+
+    def _init_mock_data(self):
+        # 初始化 ID=2 的 "寶咖咖" 餐廳
+        self.data[2] = RestaurantSeatsResponse(
+            restaurant_id=2,
+            restaurant_name="寶咖咖",
+            seats=[
+                TableDetail(table_id=101, label="A1", x=1, y=1, status="eating"),
+                TableDetail(table_id=102, label="A2", x=2, y=1, status="empty"),
+                TableDetail(table_id=103, label="B1", x=1, y=2, status="empty"),
+                TableDetail(table_id=104, label="B2", x=2, y=2, status="empty"),
+            ]
+        )
+
+    def get_layout(self, restaurant_id: int):
+        return self.data.get(restaurant_id)
+
+    # 用來尋找並更新特定桌子的狀態
+    def get_seat_by_id(self, table_id: int) -> TableDetail | None:
+        # 遍歷所有餐廳的座位來找這張桌子 (簡單實作)
+        for layout in self.data.values():
+            for seat in layout.seats:
+                if seat.table_id == table_id:
+                    return seat
+        return None
+_mock_table_repo = MemoryTableRepository()

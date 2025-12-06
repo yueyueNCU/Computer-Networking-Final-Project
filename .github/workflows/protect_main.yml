@@ -2,15 +2,17 @@ name: Protect main
 
 on:
   pull_request:
-    branches:
-      - main
+    types: [opened, synchronize, reopened] # 偵測所有 PR 事件
 
 jobs:
   check-source:
     runs-on: ubuntu-latest
+    if: ${{ github.base_ref == 'main' }} 
     steps:
       - name: Check if PR is from dev
         run: |
+          # 由於 Job 已經被 if 限制，這裡的檢查只有在合併到 main 時才會執行，
+          # 故邏輯是正確的。
           if [ "${{ github.head_ref }}" != "dev" ]; then
             echo "Only dev can merge into main."
             exit 1

@@ -10,6 +10,7 @@ from app.schemas.map_schema import RestaurantItem
 ## yueyue
 ## 這邊真的有點怪異
 ## MagicMock() 應該要去參考IMapRepository
+## 而不是無中生有
 def test_get_restaurants():
     # 1. Arrange (準備假資料)
     mock_repo = MagicMock()

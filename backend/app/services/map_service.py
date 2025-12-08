@@ -3,11 +3,21 @@ from app.interfaces.map_interface import IMapRepository
 from app.schemas.map_schema import RestaurantItem
 
 class MapService:
-    def __init__(self, repo: IMapRepository):
-        self.repo = repo
+    def __init__(self, map_repo: IMapRepository):
+        # 依賴注入：這裡只認得 IMapRepository 定義過的 function
+        self.map_repo = map_repo
 
-    def get_restaurants(self, user_lat: float, user_lng: float) -> List[RestaurantItem]:
-        raw_data = self.repo.get_nearby_restaurants(lat=user_lat, lng=user_lng, radius=1000)
+    def get_restaurants(self) -> List[RestaurantItem]:
+        """
+        對應 GET /api/restaurants
+        """
+        # 1. 從 Repo 撈取原始資料 (List[Dict])
+        raw_data = self.map_repo.get_all_restaurants()
         
-        # 把字典 (dict) 轉換成 Pydantic 物件 (RestaurantItem)
-        return [RestaurantItem(**item) for item in raw_data]
+        # 2. 資料轉換 (Dict -> Pydantic Schema)
+        result = []
+        for item in raw_data:
+            restaurant = RestaurantItem(**item)
+            result.append(restaurant)
+            
+        return result

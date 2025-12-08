@@ -1,42 +1,49 @@
-# 檔案: tests/test_map_service.py
 import pytest
 from unittest.mock import MagicMock
 from app.services.map_service import MapService
-from app.repositories.map_repo import MapRepository
-from app.schemas.map_schema import RestaurantItem
+from app.interfaces.map_interface import IMapRepository
 
 def test_get_restaurants():
-    # 1. Arrange (準備假資料)
-    mock_repo = MagicMock()
+    # --- 1. Arrange (準備環境) ---
+    mock_repo = MagicMock(spec=IMapRepository)
     
-    # 假裝資料庫裡有這兩間餐廳
-    fake_data = [
-        RestaurantItem(
-            restaurant_id=1, restaurant_name="Yueyue Burger", 
-            lat=25.0, lng=121.0, image_url="img1.jpg", 
-            average_price="$$", specialties="Burger", status="green"
-        ),
-        RestaurantItem(
-            restaurant_id=2, restaurant_name="Hxy Pizza", 
-            lat=25.01, lng=121.01, image_url="img2.jpg", 
-            average_price="$", specialties="Pizza", status="yellow"
-        )
+    # 假資料 (模擬 Repository 從資料庫撈出來的原始 Dict)
+    fake_db_data = [
+        {
+            "restaurant_id": 2,
+            "restaurant_name": "麥克小姐",
+            "lat": 24.968,
+            "lng": 121.192,
+            "image_url": "https://example.com/burger.jpg",
+            "average_price": "150-300",
+            "specialties": "義大利麵、漢堡",
+            "status": "green",
+        },
+        {
+            "restaurant_id": 3,
+            "restaurant_name": "歐姆萊斯",
+            "lat": 24.970,
+            "lng": 121.195,
+            "image_url": "https://example.com/rice.jpg",
+            "average_price": "80-150",
+            "specialties": "咖哩、豬排飯",
+            "status": "red",
+        }
     ]
-    
-    # 設定 Mock 行為：當呼叫 get_nearby_restaurants 時，回傳上面的假資料
-    mock_repo.get_nearby_restaurants.return_value = fake_data
+
+    # 設定 Mock 行為
+    mock_repo.get_all_restaurants.return_value = fake_db_data
     
     # 初始化 Service
-    service = MapService(repo=mock_repo)
+    service = MapService(map_repo=mock_repo)
 
-    # 2. Act (執行測試)
-    # 假設使用者位置在 (25.0, 121.0)
-    result = service.get_restaurants(user_lat=25.0, user_lng=121.0)
+    # --- 2. Act (執行測試) ---
+    result = service.get_restaurants()
 
-    # 3. Assert (驗證結果)
+    # --- 3. Assert (驗證結果) ---
     assert len(result) == 2
-    assert result[0].restaurant_name == "Yueyue Burger"
-    assert result[1].status == "yellow"
+    assert result[0].restaurant_name == "麥克小姐"
+    assert result[1].status == "red"
     
-    # 驗證 Service 是否有正確呼叫 Repository
-    mock_repo.get_nearby_restaurants.assert_called_once()
+    # 驗證 Service 是否呼叫了正確的 Repo 方法
+    mock_repo.get_all_restaurants.assert_called_once()

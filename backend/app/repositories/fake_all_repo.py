@@ -6,7 +6,6 @@ from app.services.queue_service import QueueService
 # --- 1. 模擬 Map Repository (餐廳資訊) ---
 class MemoryMapRepository(IMapRepository):
     def check_exists(self, restaurant_id: int) -> bool:
-        # 為了方便測試，假設 ID 小於 100 的餐廳都存在
         return restaurant_id < 100
 
     def get_restaurant_basic_info(self, restaurant_id: int) -> dict:
@@ -15,7 +14,8 @@ class MemoryMapRepository(IMapRepository):
             "restaurant_name": f"測試餐廳 No.{restaurant_id}",
             "address": "虛擬記憶體路 123 號"
         }
-    def get_nearby_restaurants(self, lat: float, lng: float, radius: int) -> list:
+
+    def get_all_restaurants(self) -> list:
         return [
             {
                 "restaurant_id": 2,

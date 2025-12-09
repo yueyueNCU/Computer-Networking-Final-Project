@@ -35,8 +35,8 @@ const MOCK_RESTAURANTS: RestaurantItem[] = [
   {
     restaurant_id: 4,
     restaurant_name: '哈哈',
-    lat: 24.980,
-    lng: 121.1880,
+    lat: 24.98,
+    lng: 121.188,
     image_url: 'https://placehold.co/600x400?text=Pasta',
     average_price: '$200 - $350',
     specialties: '13',

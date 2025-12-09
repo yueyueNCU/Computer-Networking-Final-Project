@@ -9,18 +9,38 @@ import MapMarker from '@/components/MapMarker.vue'
 
 // 資料狀態
 const restaurants = ref<RestaurantItem[]>([])
+const isLoading = ref(false)
+const lastUpdated = ref('') // [新增] 儲存上次更新時間
 
 // 地圖設定
 const zoom = ref(15)
 const center = ref<[number, number]>([24.9698, 121.1915])
 
-// 取得資料
-onMounted(async () => {
+// [修改] 獨立出資料獲取函式
+const fetchData = async () => {
+  if (isLoading.value) return
+
+  isLoading.value = true
   try {
     restaurants.value = await getRestaurants()
+
+    // [新增] 更新時間戳記
+    const now = new Date()
+    lastUpdated.value = now.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
   } catch (error) {
     console.error('Failed to fetch restaurants:', error)
+  } finally {
+    isLoading.value = false
   }
+}
+
+// 取得資料
+onMounted(() => {
+  fetchData()
 })
 
 // 將狀態代碼轉為中文
@@ -50,6 +70,15 @@ const getStatusLabel = (status: string) => {
 
         <MapMarker v-for="r in restaurants" :key="r.restaurant_id" :restaurant="r" />
       </l-map>
+
+      <div class="map-controls">
+        <button class="reload-btn" @click="fetchData" :disabled="isLoading">
+          <span v-if="isLoading">更新中...</span>
+          <span v-else> 重整狀態</span>
+        </button>
+
+        <div v-if="lastUpdated" class="last-updated-label">更新於: {{ lastUpdated }}</div>
+      </div>
     </div>
 
     <div class="list-section">
@@ -81,34 +110,87 @@ const getStatusLabel = (status: string) => {
 </template>
 
 <style scoped>
-/* 1. 外框容器：使用 Flex Column 讓地圖跟列表垂直排列 */
+/* ... (保留原有的 home-container, map-section 樣式) ... */
 .home-container {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* 佔滿整個螢幕高度 */
+  height: 100vh;
   background-color: #f8f9fa;
-  overflow: hidden; /* 防止整個頁面捲動 */
+  overflow: hidden;
 }
 
-/* 2. 地圖區塊 */
 .map-section {
-  flex: 1; /* 自動填滿剩餘空間 (大約佔 55-60%) */
+  flex: 1;
   position: relative;
-  min-height: 0; /* 修正 Flex 子元素高度溢出問題 */
+  min-height: 0;
   z-index: 1;
 }
 
-/* 3. 列表區塊 */
+.map-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000; /* 確保浮在地圖之上 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* 靠右對齊 */
+  gap: 8px; /* 按鈕跟文字的間距 */
+}
+
+/* 按鈕樣式 */
+.reload-btn {
+  background-color: white;
+  border: 1px solid #ddd;
+  padding: 10px 16px;
+  border-radius: 50px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #333;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.reload-btn:hover {
+  background-color: #f0f0f0;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.reload-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.reload-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: #eee;
+}
+
+/* 最後更新時間 */
+.last-updated-label {
+  font-size: 0.75rem;
+  color: #555;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(2px);
+}
+
 .list-section {
-  height: 45%; /* 設定列表佔據螢幕下方 45% */
+  height: 45%;
   background-color: white;
   display: flex;
   flex-direction: column;
-
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
   box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.1);
-  z-index: 10; /* 確保蓋在地圖上面 */
+  z-index: 10;
   position: relative;
 }
 
@@ -122,14 +204,12 @@ const getStatusLabel = (status: string) => {
   margin: 0;
 }
 
-/* 列表內容捲動區 */
 .list-content {
-  flex: 1; /* 佔滿 list-section 剩下的高度 */
-  overflow-y: auto; /* 內容多時可垂直捲動 */
+  flex: 1;
+  overflow-y: auto;
   padding: 10px 15px;
 }
 
-/* 4. 卡片樣式 */
 .restaurant-card {
   display: flex;
   background: white;
@@ -141,7 +221,6 @@ const getStatusLabel = (status: string) => {
   border-bottom: none;
 }
 
-/* 卡片左側圖片 */
 .card-img-wrapper {
   width: 80px;
   height: 80px;
@@ -157,7 +236,6 @@ const getStatusLabel = (status: string) => {
   object-fit: cover;
 }
 
-/* 卡片右側資訊 */
 .card-info {
   flex: 1;
   display: flex;
@@ -191,14 +269,12 @@ const getStatusLabel = (status: string) => {
   margin: 2px 0;
 }
 
-/* 狀態標籤 */
 .status-badge {
   font-size: 0.75rem;
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: bold;
 }
-/* 根據狀態變色 */
 .status-badge.green {
   color: #2e7d32;
   background: #e8f5e9;

@@ -82,12 +82,44 @@ class MemoryQueueRuntimeRepository(IQueueRuntimeRepository):
     def get_metrics(self, restaurant_id: int) -> Tuple[int, int]:
         # 固定回傳 (平均用餐時間 15 分鐘, 總座位 10)
         return (15, 10)
+    
+class MemoryTableRepository:
+    def __init__(self):
+        # Key: restaurant_id, Value: RestaurantSeatsResponse
+        self.data: Dict[int, RestaurantSeatsResponse] = {}
+        self._init_mock_data()
+
+    def _init_mock_data(self):
+        # 初始化 ID=2 的 "寶咖咖" 餐廳
+        self.data[2] = RestaurantSeatsResponse(
+            restaurant_id=2,
+            restaurant_name="寶咖咖",
+            seats=[
+                TableDetail(table_id=101, label="A1", x=1, y=1, status="eating"),
+                TableDetail(table_id=102, label="A2", x=2, y=1, status="empty"),
+                TableDetail(table_id=103, label="B1", x=1, y=2, status="empty"),
+                TableDetail(table_id=104, label="B2", x=2, y=2, status="empty"),
+            ]
+        )
+
+    def get_layout(self, restaurant_id: int) -> Optional[RestaurantSeatsResponse]:
+        return self.data.get(restaurant_id)
+
+    # 用來尋找並更新特定桌子的狀態
+    def get_seat_by_id(self, table_id: int) -> Optional[TableDetail]:
+        # 遍歷所有餐廳的座位來找這張桌子 (簡單實作)
+        for layout in self.data.values():
+            for seat in layout.seats:
+                if seat.table_id == table_id:
+                    return seat
+        return None
 
 # --- 4. 組合包：產生 Fake Service 的工廠函數 ---
 # 這些變數放在全域，確保所有 Request 共用同一份記憶體資料
 _mock_map_repo = MemoryMapRepository()
 _mock_queue_repo = MemoryQueueRepository()
 _mock_runtime_repo = MemoryQueueRuntimeRepository()
+_mock_table_repo = MemoryTableRepository()
 
 def get_memory_queue_service() -> QueueService:
     """
@@ -98,6 +130,13 @@ def get_memory_queue_service() -> QueueService:
         queue_runtime_repo=_mock_runtime_repo,
         map_repo=_mock_map_repo
     )
+def get_memory_table_service():
+    """
+    產生 TableService
+    """
+    from app.services.table_service import TableService
+    
+    return TableService(repo=_mock_table_repo)
 
 class MemoryTableRepository:
     def __init__(self):
@@ -129,4 +168,3 @@ class MemoryTableRepository:
                 if seat.table_id == table_id:
                     return seat
         return None
-_mock_table_repo = MemoryTableRepository()

@@ -1,6 +1,7 @@
 # Path: app/main.py
 from fastapi import FastAPI
 from app.routers import map
+from app.routers import table
 import uvicorn
 import os
 
@@ -21,6 +22,7 @@ app = FastAPI(
 # 註冊 Router
 app.include_router(queue_router, tags=["Queues"])
 app.include_router(map.router)
+app.include_router(table.router)
 
 # ==========================================
 # 關鍵點：啟動時切換成 Fake Database

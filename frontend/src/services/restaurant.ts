@@ -1,4 +1,8 @@
-import type { RestaurantListResponse, RestaurantItem } from '@/types/RestaurantApi'
+import type {
+  RestaurantListResponse,
+  RestaurantItem,
+  QueueStatusResponse,
+} from '@/types/RestaurantApi'
 
 // 假資料
 const MOCK_RESTAURANTS: RestaurantItem[] = [
@@ -48,7 +52,6 @@ const MOCK_RESTAURANTS: RestaurantItem[] = [
  * 取得所有餐廳資訊 (Mock 版)
  */
 export async function getRestaurants(): Promise<RestaurantListResponse> {
-  // 模擬網路延遲 0.5 秒 (讓你有載入的感覺)
   await new Promise((resolve) => setTimeout(resolve, 500))
 
   // 直接回傳假資料，而不是去呼叫 API
@@ -65,4 +68,32 @@ export async function getRestaurants(): Promise<RestaurantListResponse> {
   }
   return await response.json()
 }
+const response = await 
 */
+
+export async function getQueueStatus(restaurantId: number): Promise<QueueStatusResponse> {
+  // --- 這邊是 Mock，等資料庫建好之後用下面註解掉的地方 ---
+  // 模擬網路延遲
+  await new Promise((resolve) => setTimeout(resolve, 300))
+
+  // 模擬回傳資料 (對應後端 QueueStatusResponse schema)
+  const randomWaiting = Math.floor(Math.random() * 10) + 1 // 隨機 1~10 組
+
+  return {
+    restaurant_id: restaurantId,
+    restaurant_name: '餐廳名稱(Mock)',
+    current_number: 100,
+    total_waiting: randomWaiting,
+    // 這裡簡單模擬一組需等 5 分鐘
+    avg_wait_time: randomWaiting * 5,
+  }
+
+  // --- 資料庫建好後切換成這個 ---
+  /*
+  const response = await fetch(`/api/restaurants/${restaurantId}/queue/status`)
+  if (!response.ok) {
+    throw new Error('Network response was not ok')
+  }
+  return await response.json()
+  */
+}

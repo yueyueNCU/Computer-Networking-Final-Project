@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-// 如果有定義好的型別也可以引入，這邊直接示範符合您 JSON 的結構
 // import type { QueueStatusResponse } from '@/types/RestaurantApi'
 
-// 1. [新增] 模擬使用者的票號 (這通常是使用者抽號碼牌後存在前端的)
+// 模擬使用者的票號 (這通常是使用者抽號碼牌後存在前端的)
 const myTicketNumber = ref(110)
 
-// 2. [修改] 餐廳排隊狀態資料 (符合您提供的 JSON 格式)
+// 餐廳排隊狀態資料 (符合您提供的 JSON 格式)
 const queueStatus = ref({
   restaurant_id: 4,
   restaurant_name: '麥克小姐', // 範例填入

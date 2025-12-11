@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import 'leaflet/dist/leaflet.css'
 import { LMap, LTileLayer } from '@vue-leaflet/vue-leaflet'
 
-import type { RestaurantItem } from '@/types/RestaurantApi'
+import type { RestaurantItem, QueueStatusResponse } from '@/types/RestaurantApi'
 import { getRestaurants, getQueueStatus } from '@/services/restaurant'
 import MapMarker from '@/components/MapMarker.vue'
 
@@ -19,6 +19,14 @@ const selectedId = ref<number | null>(null)
 // 地圖設定
 const zoom = ref(15)
 const center = ref<[number, number]>([24.9698, 121.1915]) // 中央大學座標
+
+// Modal 控制狀態 (用來等下顯示排隊確認視窗)
+const showModal = ref(false)
+// 暫存要排隊的餐廳資訊 (用於顯示在 Modal 中)
+const pendingQueueInfo = ref<{
+  restaurant: RestaurantItem
+  status: QueueStatusResponse
+} | null>(null)
 
 // 資料獲取函式
 const fetchData = async () => {
@@ -39,13 +47,47 @@ const fetchData = async () => {
   }
 }
 
-// 處理排隊按鈕點擊
-const handleJoinQueue = (restaurant: RestaurantItem) => {
-  if (confirm(`確定要加入「${restaurant.restaurant_name}」的排隊隊伍嗎？`)) {
-    console.log(`User wants to join queue for: ${restaurant.restaurant_id}`)
+// [修改] 點擊排隊按鈕 -> 取得資料 -> 開啟 Modal
+const handleJoinQueue = async (restaurant: RestaurantItem) => {
+  try {
+    document.body.style.cursor = 'wait'
+
+    // 取得排隊狀態
+    const status = await getQueueStatus(restaurant.restaurant_id)
+
+    document.body.style.cursor = 'default'
+
+    // 設定暫存資訊並開啟 Modal
+    pendingQueueInfo.value = {
+      restaurant: restaurant,
+      status: status,
+    }
+    showModal.value = true
+  } catch (error) {
+    document.body.style.cursor = 'default'
+    console.error('Failed to fetch queue status:', error)
+    alert('無法取得排隊資訊')
   }
 }
 
+// Modal 確認按鈕邏輯
+const confirmQueue = () => {
+  if (pendingQueueInfo.value) {
+    const { restaurant } = pendingQueueInfo.value
+    console.log(`User confirmed via Custom Modal. ID: ${restaurant.restaurant_id}`)
+
+    // TODO: 這裡呼叫後端 join queue API
+    // await joinQueue(...)
+    // router.push('/queue')
+  }
+  closeModal()
+}
+
+// 關閉 Modal
+const closeModal = () => {
+  showModal.value = false
+  pendingQueueInfo.value = null
+}
 // 捲動到指定餐廳卡片 & 設定選中狀態 (變色)
 const scrollToCard = (id: number) => {
   // 更新選中的 ID，讓 MapMarker 變色
@@ -104,9 +146,9 @@ const getStatusLabel = (status: string) => {
       <div class="map-controls">
         <button class="reload-btn" @click="fetchData" :disabled="isLoading">
           <span v-if="isLoading">更新中...</span>
-          <span v-else>🔄 重整地圖</span>
+          <span v-else> 更新餐廳狀態</span>
         </button>
-        <div v-if="lastUpdated" class="last-updated-label">更新於: {{ lastUpdated }}</div>
+        <div v-if="lastUpdated" class="last-updated-label">最後更新於: {{ lastUpdated }}</div>
       </div>
     </div>
 
@@ -145,6 +187,39 @@ const getStatusLabel = (status: string) => {
           </div>
         </div>
       </div>
+      <div v-if="showModal && pendingQueueInfo" class="modal-overlay" @click.self="closeModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>排隊確認</h3>
+          </div>
+
+          <div class="modal-body">
+            <p class="confirm-text">
+              您想要排隊 <strong>{{ pendingQueueInfo.restaurant.restaurant_name }}</strong> 嗎？
+            </p>
+
+            <div class="info-box">
+              <div class="info-row">
+                <span class="label">目前等待</span>
+                <span class="value">{{ pendingQueueInfo.status.total_waiting }} 組</span>
+              </div>
+              <div class="info-row">
+                <span class="label">預計時間</span>
+                <span class="value highlight"
+                  >{{ pendingQueueInfo.status.avg_wait_time }} 分鐘</span
+                >
+              </div>
+            </div>
+
+            <p class="note">過號需重新取號，請留意現場叫號</p>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="closeModal">取消</button>
+            <button class="btn-confirm" @click="confirmQueue">確認排隊</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -154,8 +229,8 @@ const getStatusLabel = (status: string) => {
 
 /* [新增] 當卡片被選中時的樣式 (可選) */
 .restaurant-card.selected-card {
-  background-color: #f0f7ff; /* 淡藍色背景 */
-  border-left: 4px solid #2196f3;
+  background-color: #fff8e1; /* 淡藍色背景 */
+  border-left: 4px solid #ffb74d;
 }
 
 /* ... (其他樣式保持不變) ... */
@@ -252,10 +327,6 @@ const getStatusLabel = (status: string) => {
 .restaurant-card:last-child {
   border-bottom: none;
 }
-.restaurant-card.highlight-flash {
-  background-color: #fff8e1;
-  border-color: #ffb74d;
-}
 .card-img-wrapper {
   width: 80px;
   height: 80px;
@@ -264,6 +335,8 @@ const getStatusLabel = (status: string) => {
   flex-shrink: 0;
   background-color: #eee;
   margin-right: 15px;
+  margin-top: 15px;
+  margin-left: 10px;
 }
 .card-img {
   width: 100%;
@@ -338,5 +411,132 @@ const getStatusLabel = (status: string) => {
 .queue-action-btn:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+}
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* 半透明黑色背景 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000; /* 確保比地圖和導覽列都高 */
+  backdrop-filter: blur(3px); /* 背景模糊效果 */
+}
+
+/* Modal 本體 */
+.modal-content {
+  background: white;
+  width: 85%;
+  max-width: 320px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: popIn 0.3s ease-out;
+}
+
+/* 彈出動畫 */
+@keyframes popIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  background-color: #ff9800;
+  padding: 15px;
+  text-align: center;
+}
+.modal-header h3 {
+  margin: 0;
+  color: white;
+  font-size: 1.1rem;
+}
+
+.modal-body {
+  padding: 20px;
+  text-align: center;
+}
+
+.confirm-text {
+  margin: 0 0 15px;
+  font-size: 1rem;
+  color: #333;
+}
+.confirm-text strong {
+  color: #e65100;
+}
+
+/* 資訊框框 */
+.info-box {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-row .label {
+  color: #666;
+  font-size: 0.9rem;
+}
+.info-row .value {
+  font-weight: bold;
+  color: #333;
+}
+.info-row .value.highlight {
+  color: #ff9800;
+}
+
+.note {
+  font-size: 0.8rem;
+  color: #999;
+  margin: 0;
+}
+
+.modal-footer {
+  display: flex;
+  border-top: 1px solid #eee;
+}
+
+.modal-footer button {
+  flex: 1;
+  border: none;
+  background: white;
+  padding: 15px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancel {
+  color: #888;
+  border-right: 1px solid #eee !important;
+}
+.btn-cancel:active {
+  background-color: #f5f5f5;
+}
+
+.btn-confirm {
+  color: #ff9800;
+  font-weight: bold;
+}
+.btn-confirm:active {
+  background-color: #fff3e0;
 }
 </style>

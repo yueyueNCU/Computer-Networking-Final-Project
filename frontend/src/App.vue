@@ -14,7 +14,7 @@ import { RouterView, RouterLink } from 'vue-router'
       </RouterLink>
 
       <RouterLink to="/queue" class="nav-item" active-class="active">
-        <span>排隊狀態</span>
+        <span>我的排隊</span>
       </RouterLink>
     </nav>
   </div>

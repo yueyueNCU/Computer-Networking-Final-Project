@@ -1,21 +1,58 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-// import type { QueueStatusResponse } from '@/types/RestaurantApi'
+import { ref, computed, onMounted } from 'vue'
+import type { QueueStatusResponse } from '@/types/RestaurantApi'
+import { getQueueStatus } from '@/services/restaurant'
 
-// 模擬使用者的票號 (這通常是使用者抽號碼牌後存在前端的)
+// 1. 模擬使用者的票號 (假設使用者手上拿的是 110 號)
 const myTicketNumber = ref(110)
 
-// 餐廳排隊狀態資料 (符合您提供的 JSON 格式)
-const queueStatus = ref({
+// 2. 排隊狀態 (改為空值或預設值，等待 API 更新)
+const queueStatus = ref<QueueStatusResponse>({
   restaurant_id: 4,
-  restaurant_name: '麥克小姐', // 範例填入
-  current_number: 105, // 目前叫號 (API 資料)
-  total_waiting: 5, // 總排隊組數 (API 資料)
-  avg_wait_time: 25, // 預估時間 (API 資料)
+  restaurant_name: '麥克小姐',
+  current_number: 100, // 預設值
+  total_waiting: 0,
+  avg_wait_time: 0
 })
 
-// [新增] 計算前方還有幾組人 (我的號碼 - 目前叫號)
-// 邏輯：如果現在叫 105，我是 110，代表還要等 105~109 消化完 (視規則而定，這裡簡單相減)
+// 載入狀態與時間
+const isLoading = ref(false)
+const lastUpdated = ref('')
+
+// 獲取最新排隊狀態
+const fetchQueueData = async () => {
+  if (isLoading.value) return
+  isLoading.value = true
+  
+  try {
+    // 這裡模擬去抓 "麥克小姐" (ID: 4) 的最新狀態
+    // 實際專案中，這裡的 ID 應該是從使用者的排隊紀錄 (LocalStorage/Pinia) 拿出來的
+    const data = await getQueueStatus(4)
+    
+    // 更新資料
+    queueStatus.value = data
+    
+    // 更新時間
+    const now = new Date()
+    lastUpdated.value = now.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit' 
+    })
+    
+  } catch (error) {
+    console.error('更新排隊狀態失敗', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 初始化時抓取一次
+onMounted(() => {
+  fetchQueueData()
+})
+
+// 計算前方還有幾組人
 const peopleAhead = computed(() => {
   const diff = myTicketNumber.value - queueStatus.value.current_number
   return diff > 0 ? diff : 0
@@ -25,20 +62,33 @@ const peopleAhead = computed(() => {
 const cancelQueue = () => {
   if (confirm('確定要取消排隊嗎？')) {
     alert('已取消排隊')
-    // 實際邏輯可能會清空 myTicketNumber 或跳轉回首頁
   }
 }
 </script>
 
 <template>
   <div class="queue-container">
+    <div class="refresh-controls">
+      <button 
+        class="reload-btn" 
+        @click="fetchQueueData" 
+        :disabled="isLoading"
+      >
+        <span v-if="isLoading">更新中...</span>
+        <span v-else>更新資訊</span>
+      </button>
+      <div v-if="lastUpdated" class="last-updated-label">
+        最後更新於: {{ lastUpdated }}
+      </div>
+    </div>
+
     <div class="header">
-      <h2>我的排隊</h2>
+      <h2>排隊狀態</h2>
     </div>
 
     <div class="ticket-card">
       <div class="restaurant-name">{{ queueStatus.restaurant_name }}</div>
-
+      
       <div class="ticket-info">
         <span class="label">您的號碼</span>
         <span class="number">{{ myTicketNumber }}</span>
@@ -83,9 +133,59 @@ const cancelQueue = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow-y: auto; /* 內容多時可捲動 */
+  overflow-y: auto;
+  position: relative; /* 為了讓絕對定位的按鈕參考 */
 }
 
+/* [新增] 重整按鈕容器樣式 */
+.refresh-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 100;
+}
+
+/* 復用 HomeView 的按鈕樣式 */
+.reload-btn {
+  background-color: white;
+  border: 1px solid #ddd;
+  padding: 8px 14px; /* 稍微小一點點，因為排隊頁面比較緊湊 */
+  border-radius: 50px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #333;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.reload-btn:hover {
+  background-color: #f0f0f0;
+  transform: translateY(-1px);
+}
+
+.reload-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.last-updated-label {
+  font-size: 0.75rem;
+  color: #555;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* ... (保留原本的 header, ticket-card, status-grid 等樣式) ... */
 .header h2 {
   color: #333;
   margin-bottom: 20px;
@@ -97,11 +197,11 @@ const cancelQueue = () => {
   width: 100%;
   max-width: 340px;
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
   padding: 30px 20px;
   text-align: center;
   margin-bottom: 30px;
-  border-top: 6px solid #ff9800; /* 頂部裝飾條 */
+  border-top: 6px solid #ff9800;
 }
 
 .restaurant-name {
@@ -114,7 +214,7 @@ const cancelQueue = () => {
 .ticket-info {
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 1px dashed #eee; /* 虛線分隔 */
+  border-bottom: 1px dashed #eee;
 }
 .ticket-info .label {
   display: block;
@@ -124,13 +224,12 @@ const cancelQueue = () => {
 }
 .ticket-info .number {
   font-size: 4.5rem;
-  font-weight: 800; /* 特粗體 */
+  font-weight: 800;
   color: #333;
   line-height: 1;
-  font-family: sans-serif; /* 確保數字樣式清楚 */
+  font-family: sans-serif;
 }
 
-/* 狀態網格：2x2 排列 */
 .status-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -147,9 +246,8 @@ const cancelQueue = () => {
   border-radius: 8px;
 }
 
-/* 強調目前叫號 */
 .status-item.highlight {
-  background-color: #fff8e1; /* 淡黃色背景 */
+  background-color: #fff8e1;
   border: 1px solid #ffe0b2;
 }
 .status-item.highlight .value {

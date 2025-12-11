@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional,Tuple
 from app.schemas.queue_schema import QueueStatusResponse,JoinQueueResponse, QueueNextResponse
-
+from app.domain.entities import QueueEntity
+from app.domain.value_objects import RestaurantMetrics
 
 class IQueueService(ABC):
     @abstractmethod
@@ -70,19 +71,19 @@ class IQueueRepository(ABC):
         pass
 
     @abstractmethod
-    def get_user_current_queue(self, user_id: int) -> Optional[int]:
+    def get_user_current_queue(self, user_id: int) -> Optional[QueueEntity]:
         """
             檢查使用者目前是否正在排任何隊伍。
-            若有排隊，回傳 restaurant_id，否則回傳 None。
 
             SQL 指令:
-                SELECT restaurant_id
+                SELECT *
                 FROM queue
-                WHERE user_id = ?
-                LIMIT 1;
+                WHERE user_id = ?;
 
             Returns:
-                Optional[int]: 若有排隊則回傳 restaurant_id，否則 None
+                Optional[QueueEntity]: 
+                    - 若使用者在排隊中，回傳 QueueEntity 物件 
+                    - 若使用者未排隊，回傳 None
         """
         pass
     @abstractmethod
@@ -160,7 +161,7 @@ class IQueueRuntimeRepository(ABC):
         """
         pass
     @abstractmethod
-    def get_metrics(self, restaurant_id: int) -> Tuple[int , int]: #[average_wait_time, table_number]
+    def get_metrics(self, restaurant_id: int) -> RestaurantMetrics: #[average_wait_time, table_number]
         """
         取得平均等待時間及餐廳座位數
         SQL指令:

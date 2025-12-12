@@ -6,7 +6,7 @@ import { getQueueStatus } from '@/services/restaurant'
 // 1. 模擬使用者的票號 (假設使用者手上拿的是 110 號)
 const myTicketNumber = ref(110)
 
-// 2. 排隊狀態 (改為空值或預設值，等待 API 更新)
+// 2. 排隊狀態
 const queueStatus = ref<QueueStatusResponse>({
   restaurant_id: 4,
   restaurant_name: '麥克小姐',
@@ -88,19 +88,14 @@ const cancelQueue = () => {
       </div>
 
       <div class="status-grid">
-        <div class="status-item highlight">
+        <div class="status-item highlight full-width">
           <span class="label">目前叫號</span>
-          <span class="value">{{ queueStatus.current_number }}</span>
+          <span class="value big-text">{{ queueStatus.current_number }}</span>
         </div>
 
         <div class="status-item">
           <span class="label">前方還有</span>
           <span class="value">{{ peopleAhead }} 組</span>
-        </div>
-
-        <div class="status-item">
-          <span class="label">現場排隊</span>
-          <span class="value">{{ queueStatus.total_waiting }} 組</span>
         </div>
 
         <div class="status-item">
@@ -127,10 +122,9 @@ const cancelQueue = () => {
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
-  position: relative; /* 為了讓絕對定位的按鈕參考 */
+  position: relative;
 }
 
-/* [新增] 重整按鈕容器樣式 */
 .refresh-controls {
   position: absolute;
   top: 20px;
@@ -142,11 +136,10 @@ const cancelQueue = () => {
   z-index: 100;
 }
 
-/* 復用 HomeView 的按鈕樣式 */
 .reload-btn {
   background-color: white;
   border: 1px solid #ddd;
-  padding: 8px 14px; /* 稍微小一點點，因為排隊頁面比較緊湊 */
+  padding: 8px 14px;
   border-radius: 50px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   cursor: pointer;
@@ -178,7 +171,6 @@ const cancelQueue = () => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* ... (保留原本的 header, ticket-card, status-grid 等樣式) ... */
 .header h2 {
   color: #333;
   margin-bottom: 20px;
@@ -223,10 +215,11 @@ const cancelQueue = () => {
   font-family: sans-serif;
 }
 
+/* Grid Layout 修改 */
 .status-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: 1fr 1fr; /* 保持兩欄 */
+  gap: 15px; /*稍微縮小間距讓版面緊湊 */
   margin-bottom: 25px;
 }
 
@@ -234,9 +227,16 @@ const cancelQueue = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   background-color: #f9f9f9;
-  padding: 10px;
+  padding: 12px;
   border-radius: 8px;
+}
+
+/* 新增樣式：讓元素跨滿兩欄 */
+.status-item.full-width {
+  grid-column: 1 / -1; /* 跨越起始到結束的所有欄位 */
+  padding: 15px; /* 增加一點內距 */
 }
 
 .status-item.highlight {
@@ -257,6 +257,12 @@ const cancelQueue = () => {
   font-size: 1.2rem;
   font-weight: bold;
   color: #2c3e50;
+}
+
+/* 加大重點文字 */
+.status-item .value.big-text {
+  font-size: 1.8rem;
+  line-height: 1.2;
 }
 
 .card-footer p {

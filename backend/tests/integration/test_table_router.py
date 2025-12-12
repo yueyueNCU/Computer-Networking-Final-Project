@@ -9,7 +9,7 @@ from app.schemas.table_schema import RestaurantSeatsResponse, TableDetail
 
 # 建立測試用的 FastAPI App
 app = FastAPI()
-app.include_router(table_router_module.router)
+app.include_router(table_router_module.table_router)
 
 client = TestClient(app)
 

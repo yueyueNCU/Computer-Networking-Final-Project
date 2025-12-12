@@ -109,7 +109,7 @@ class QueueService(IQueueService):
         if queue_ticket is None:
             raise NotInQueueError()
         restaurant_id= queue_ticket.restaurant_id
-        user_id = queue_ticket.queue_id
+        user_id = queue_ticket.user_id
 
         restaurant = self.map_repo.get_restaurant_basic_info(restaurant_id=restaurant_id)
         if restaurant is None:

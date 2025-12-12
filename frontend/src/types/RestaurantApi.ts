@@ -56,25 +56,19 @@ export interface UpdateTableStatusResponse {
   updated_at: string // ISO 8601 格式的日期時間字串
 }
 
-/**
- * 加入排隊的請求 (POST /api/restaurants/{restaurant_id}/queue)
- */
+// 加入排隊的請求 (POST /api/restaurants/{restaurant_id}/queue)
 export interface JoinQueueRequest {
   user_id: number
 }
 
-/**
- * 加入排隊的回應
- */
+// 加入排隊，且成功的回應
 export interface JoinQueueResponse {
   ticket_number: number
   people_ahead: number
   estimated_wait_time: number // 分鐘
 }
 
-/**
- * 排隊狀態查詢 (GET /api/restaurants/{restaurant_id}/queue/status)
- */
+// 排隊狀態查詢 (GET /api/restaurants/{restaurant_id}/queue/status)
 export interface QueueStatusResponse {
   restaurant_id: number
   restaurant_name: string

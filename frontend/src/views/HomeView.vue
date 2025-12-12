@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import 'leaflet/dist/leaflet.css'
 import { LMap, LTileLayer } from '@vue-leaflet/vue-leaflet'
 
-import type { RestaurantItem, QueueStatusResponse } from '@/types/RestaurantApi'
-import { getRestaurants, getQueueStatus } from '@/services/restaurant'
+import type { RestaurantItem, QueueStatusResponse, JoinQueueResponse } from '@/types/RestaurantApi'
+import { getRestaurants, getQueueStatus, joinQueue } from '@/services/restaurant'
 import MapMarker from '@/components/MapMarker.vue'
 
 // 資料狀態
@@ -12,9 +13,13 @@ const restaurants = ref<RestaurantItem[]>([])
 const isLoading = ref(false)
 const lastUpdated = ref('')
 const cardRefs = ref<Record<number, HTMLElement>>({})
+const router = useRouter()
 
 // 紀錄目前被選中的餐廳 ID (拿來變色用)
 const selectedId = ref<number | null>(null)
+
+// 模擬要加入排隊的使用者 ID，這裡可能要用隨機生成而且不重複的亂數?
+const currentUserId = 25
 
 // 地圖設定
 const zoom = ref(15)
@@ -27,6 +32,14 @@ const pendingQueueInfo = ref<{
   restaurant: RestaurantItem
   status: QueueStatusResponse
 } | null>(null)
+
+// 排隊成功 Modal
+const showSuccessModal = ref(false)
+const successQueueInfo = ref<JoinQueueResponse | null>(null)
+
+// 排隊失敗 Modal
+const showErrorModal = ref(false)
+const errorMessage = ref('')
 
 // 資料獲取函式
 const fetchData = async () => {
@@ -71,16 +84,54 @@ const handleJoinQueue = async (restaurant: RestaurantItem) => {
 }
 
 // Modal 確認按鈕邏輯
-const confirmQueue = () => {
+const confirmQueue = async () => {
   if (pendingQueueInfo.value) {
     const { restaurant } = pendingQueueInfo.value
-    console.log(`User confirmed via Custom Modal. ID: ${restaurant.restaurant_id}`)
 
-    // TODO: 這裡呼叫後端 join queue API
-    // await joinQueue(...)
-    // router.push('/queue')
+    try {
+      document.body.style.cursor = 'wait'
+      const currentUserId = 25
+
+      // 呼叫 API
+      const response = await joinQueue(restaurant.restaurant_id, currentUserId)
+
+      // 成功邏輯
+      successQueueInfo.value = response
+      closeModal()
+      showSuccessModal.value = true
+    } catch (error: any) {
+      console.error('排隊失敗:', error)
+
+      // 錯誤處理邏輯
+      // 設定錯誤訊息 (直接顯示後端回傳的 message，或進行簡易翻譯)
+      let msg = error.message
+      if (msg === 'You are already in the queue.') {
+        msg = '您已經在其他隊伍中排隊了！'
+      } else if (msg === 'Restaurant does not exist.') {
+        msg = '該餐廳不存在或是已下架。'
+      }
+
+      errorMessage.value = msg
+
+      // 關閉確認視窗，開啟錯誤視窗
+      closeModal()
+      showErrorModal.value = true
+    } finally {
+      document.body.style.cursor = 'default'
+    }
   }
-  closeModal()
+}
+
+const closeErrorModal = () => {
+  showErrorModal.value = false
+  errorMessage.value = ''
+}
+
+// 關閉成功視窗並前往排隊頁面
+const handleSuccessConfirm = () => {
+  showSuccessModal.value = false
+  successQueueInfo.value = null
+  router.push('/queue')
 }
 
 // 關閉 Modal
@@ -187,6 +238,7 @@ const getStatusLabel = (status: string) => {
           </div>
         </div>
       </div>
+
       <div v-if="showModal && pendingQueueInfo" class="modal-overlay" @click.self="closeModal">
         <div class="modal-content">
           <div class="modal-header">
@@ -217,6 +269,55 @@ const getStatusLabel = (status: string) => {
           <div class="modal-footer">
             <button class="btn-cancel" @click="closeModal">取消</button>
             <button class="btn-confirm" @click="confirmQueue">確認排隊</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showSuccessModal && successQueueInfo" class="modal-overlay success-overlay">
+        <div class="modal-content success-content">
+          <div class="modal-header success-header">
+            <h3>🎉 取號成功！</h3>
+          </div>
+
+          <div class="modal-body">
+            <div class="ticket-display">
+              <span class="ticket-label">您的號碼</span>
+              <span class="ticket-number">{{ successQueueInfo.ticket_number }}</span>
+            </div>
+
+            <div class="info-box">
+              <div class="info-row">
+                <span class="label">前方等待</span>
+                <span class="value">{{ successQueueInfo.people_ahead }} 組</span>
+              </div>
+              <div class="info-row">
+                <span class="label">預估時間</span>
+                <span class="value highlight">{{ successQueueInfo.estimated_wait_time }} 分鐘</span>
+              </div>
+            </div>
+
+            <p class="note">請前往「我的排隊」頁面隨時關注叫號進度</p>
+          </div>
+
+          <div class="modal-footer single-btn">
+            <button class="btn-confirm full-width" @click="handleSuccessConfirm">前往查看</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showErrorModal" class="modal-overlay error-overlay" @click.self="closeErrorModal">
+        <div class="modal-content error-content">
+          <div class="modal-header error-header">
+            <h3>排隊失敗</h3>
+          </div>
+
+          <div class="modal-body">
+            <div class="error-icon-wrapper">⚠️</div>
+            <p class="error-text">{{ errorMessage }}</p>
+          </div>
+
+          <div class="modal-footer single-btn">
+            <button class="btn-confirm full-width error-btn" @click="closeErrorModal">關閉</button>
           </div>
         </div>
       </div>
@@ -538,5 +639,88 @@ const getStatusLabel = (status: string) => {
 }
 .btn-confirm:active {
   background-color: #fff3e0;
+}
+
+.success-header {
+  background-color: #4caf50; /* 綠色代表成功 */
+  padding: 20px 15px;
+}
+
+/* 號碼牌大字顯示 */
+.ticket-display {
+  margin: 10px 0 25px;
+  padding: 15px;
+  border: 2px dashed #ddd;
+  border-radius: 12px;
+  background-color: #fafafa;
+}
+
+.ticket-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 5px;
+}
+
+.ticket-number {
+  display: block;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #333;
+  line-height: 1;
+}
+
+/* 按鈕樣式調整 */
+.modal-footer.single-btn {
+  padding: 0;
+}
+
+.btn-confirm.full-width {
+  width: 100%;
+  padding: 18px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 1.1rem;
+}
+.btn-confirm.full-width:hover {
+  background-color: #43a047;
+}
+
+.error-header {
+  background-color: #f44336; /* 紅色代表錯誤 */
+  padding: 20px 15px;
+  text-align: center;
+}
+.error-header h3 {
+  margin: 0;
+  color: white;
+  font-size: 1.2rem;
+}
+
+/* 錯誤內容區 */
+.error-icon-wrapper {
+  font-size: 3rem;
+  text-align: center;
+  margin-top: 15px;
+}
+
+.error-text {
+  font-size: 1.1rem;
+  color: #333;
+  margin: 15px 0 25px;
+  text-align: center;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* 按鈕樣式 (複用 btn-confirm 但改顏色) */
+.btn-confirm.full-width.error-btn {
+  background-color: #f44336;
+}
+.btn-confirm.full-width.error-btn:hover {
+  background-color: #d32f2f;
+}
+.btn-confirm.full-width.error-btn:active {
+  background-color: #c62828;
 }
 </style>

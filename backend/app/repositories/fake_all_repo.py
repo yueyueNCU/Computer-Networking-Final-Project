@@ -119,7 +119,38 @@ class MemoryQueueRepository(IQueueRepository):
         if not tickets:
             return None
         return min(tickets)
+    def get_people_ahead(self, restaurant_id: int, user_id: int) -> int:
+        """
+        取得排在特定使用者前面的人數。
+        
+        SQL 邏輯 (概念):
+            SELECT COUNT(*) 
+            FROM queue 
+            WHERE restaurant_id = ? 
+              AND ticket_number < (
+                  SELECT ticket_number 
+                  FROM queue 
+                  WHERE restaurant_id = ? AND user_id = ?
+              )
+        """
+        # 1. 先找到該使用者的 ticket_number
+        target_ticket = None
+        for q in self._queue_data:
+            if q.restaurant_id == restaurant_id and q.user_id == user_id:
+                target_ticket = q.ticket_number
+                break
+        
+        # 如果使用者不在該餐廳的隊伍中，回傳 0 (或是您可以選擇拋出 NotInQueueError)
+        if target_ticket is None:
+            return 0
 
+        # 2. 計算同一間餐廳中，ticket_number 小於 target_ticket 的人數
+        count = 0
+        for q in self._queue_data:
+            if q.restaurant_id == restaurant_id and q.ticket_number < target_ticket:
+                count += 1
+        
+        return count
 # --- 3. 模擬 Queue Runtime Repository (叫號狀態) ---
 class MemoryQueueRuntimeRepository(IQueueRuntimeRepository):
     def __init__(self):

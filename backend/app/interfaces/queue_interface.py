@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional,Tuple
-from app.schemas.queue_schema import QueueStatusResponse,JoinQueueResponse, QueueNextResponse
+from app.schemas.queue_schema import QueueStatusResponse,JoinQueueResponse, QueueNextResponse, UserQueueStatusResponse
 from app.domain.entities import QueueEntity
 from app.domain.value_objects import RestaurantMetrics
 
@@ -39,6 +39,13 @@ class IQueueService(ABC):
                 RestaurantNotFoundError: 餐廳不存在
         """
         pass
+    @abstractmethod
+    def get_user_queue_status(self, user_id: int) -> UserQueueStatusResponse:
+        """
+            讓已經排隊的人取得排隊狀況
+            Raises:
+                NotInQueueError: 使用者不在排隊中
+        """
 
 class IQueueRepository(ABC):
     @abstractmethod
@@ -117,6 +124,44 @@ class IQueueRepository(ABC):
                 Optional[int]: 
                     - 若有排隊 → 回傳最小 ticket_number
                     - 若無排隊 → 回傳 None
+        """
+        pass
+    @abstractmethod
+    def get_people_ahead(self, restaurant_id: int, user_id: int) -> int:
+        """
+            取得特定使用者在該餐廳排隊隊伍中前面還有多少人。
+            
+            前面的人數 = 該使用者在隊伍中的順位 (Row Number) 減去 1。
+            順位計算規則：根據 `restaurant_id` 分區，並按照 `ticket_number` 遞增排序。
+
+            SQL 指令:
+                WITH UserRank AS (
+                    -- 1. 計算所有人在各自餐廳隊伍中的順序 (row_num)
+                    SELECT
+                        user_id,
+                        restaurant_id,
+                        ticket_number,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY restaurant_id
+                            ORDER BY ticket_number ASC
+                        ) as row_num
+                    FROM
+                        queue
+                )
+                -- 2. 查詢特定使用者 (user_id = ?) 和餐廳 (restaurant_id = ?) 的順序，並計算前面人數
+                SELECT
+                    (row_num - 1) AS people_ahead
+                FROM
+                    UserRank
+                WHERE
+                    user_id = ? AND restaurant_id = ?;
+
+            若結果為空 (No rows returned)，表示該使用者不在該餐廳的排隊隊伍中。
+            
+            Returns:
+                Optional[int]: 
+                    - 若使用者在隊伍中 → 回傳前面排隊的人數 (int >= 0)
+                    - 若使用者不在隊伍中 → 回傳 None (或空集/No rows returned)
         """
         pass
 """

@@ -2,8 +2,7 @@ from typing import Optional
 from app.interfaces.queue_interface import IQueueService,IQueueRepository,IQueueRuntimeRepository
 from app.interfaces.map_interface import IMapRepository
 from app.domain.errors import NotInQueueError, QueueAlreadyJoinedError, RestaurantNotFoundError
-from app.schemas.queue_schema import QueueStatusResponse,JoinQueueResponse
-from app.schemas.queue_schema import QueueNextResponse
+from app.schemas.queue_schema import QueueStatusResponse,JoinQueueResponse,QueueNextResponse, UserQueueStatusResponse
 
 class QueueService(IQueueService):
 
@@ -55,7 +54,7 @@ class QueueService(IQueueService):
         if restaurant is None:
             raise RestaurantNotFoundError()
         if queue_ticket.restaurant_id != restaurant_id:
-            raise NotInQueueError("User is not in this restaurant's queue")
+            raise NotInQueueError("User is not in this restaurant's queue.")
         # 離開排隊
         self.queue_repo.remove_from_queue(restaurant_id=restaurant_id, user_id=user_id)
 
@@ -103,4 +102,30 @@ class QueueService(IQueueService):
             current_number=current_number,
             next_queue_to_call=next_queue_to_call,
             total_waiting=total_waiting
+        )
+    def get_user_queue_status(self, user_id: int) -> UserQueueStatusResponse:
+        # user 是否已在任何餐廳排隊
+        queue_ticket = self.queue_repo.get_user_current_queue(user_id=user_id)
+        if queue_ticket is None:
+            raise NotInQueueError()
+        restaurant_id= queue_ticket.restaurant_id
+        user_id = queue_ticket.queue_id
+
+        restaurant = self.map_repo.get_restaurant_basic_info(restaurant_id=restaurant_id)
+        if restaurant is None:
+            raise RestaurantNotFoundError()
+        people_ahead= self.queue_repo.get_people_ahead(restaurant_id=restaurant_id, user_id=user_id)
+
+        metrics= self.queue_runtime_repo.get_metrics(restaurant_id=restaurant_id)
+        # 避免除以零的錯誤 (防呆)
+        estimated_wait_time = 0
+        if metrics.table_number > 0:
+            estimated_wait_time = int(people_ahead * (metrics.average_wait_time / metrics.table_number))
+
+        return UserQueueStatusResponse(
+            restaurant_id=queue_ticket.restaurant_id,
+            restaurant_name=restaurant.restaurant_name,
+            ticket_number=queue_ticket.ticket_number,
+            people_ahead=people_ahead,
+            estimated_wait_time=estimated_wait_time
         )

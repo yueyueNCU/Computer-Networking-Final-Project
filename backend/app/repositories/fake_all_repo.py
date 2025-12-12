@@ -1,10 +1,9 @@
 from typing import Optional, List, Dict, Tuple
 from app.interfaces.queue_interface import IQueueRepository, IQueueRuntimeRepository
 from app.interfaces.map_interface import IMapRepository
-from app.services.queue_service import QueueService
-from app.services.map_service import MapService
 from app.domain.entities import MapEntity, QueueEntity
 from app.domain.value_objects import RestaurantMetrics
+from app.schemas.table_schema import RestaurantSeatsResponse, TableDetail
 # --- 1. 模擬 Map Repository (餐廳資訊) ---
 class MemoryMapRepository(IMapRepository):
     def get_restaurant_basic_info(self, restaurant_id: int) -> Optional[MapEntity]:
@@ -13,7 +12,7 @@ class MemoryMapRepository(IMapRepository):
                 restaurant_id=1,
                 restaurant_name="麥克小姐",
                 lat= 24.968,
-                lng= 21.192,
+                lng= 121.192,
                 image_url="https://example.com/burger.jpg",
                 average_price= (150,300),
                 specialties="義大利麵、漢堡"
@@ -38,7 +37,7 @@ class MemoryMapRepository(IMapRepository):
                 restaurant_id=1,
                 restaurant_name="麥克小姐",
                 lat= 24.968,
-                lng= 21.192,
+                lng= 121.192,
                 image_url="https://example.com/burger.jpg",
                 average_price= (150,300),
                 specialties="義大利麵、漢堡"
@@ -195,22 +194,54 @@ class MemoryQueueRuntimeRepository(IQueueRuntimeRepository):
         self._ensure_restaurant_exists(restaurant_id)
         return self._runtime_data[restaurant_id]["metrics"]
     
+class MemoryTableRepository:
+    def __init__(self):
+        # Key: restaurant_id, Value: RestaurantSeatsResponse
+        self.data: Dict[int, RestaurantSeatsResponse] = {}
+        self._init_mock_data()
+
+    def _init_mock_data(self):
+        # 初始化 ID=2 的 "寶咖咖" 餐廳
+        self.data[2] = RestaurantSeatsResponse(
+            restaurant_id=2,
+            restaurant_name="寶咖咖",
+            seats=[
+                TableDetail(table_id=101, label="A1", x=1, y=1, status="eating"),
+                TableDetail(table_id=102, label="A2", x=2, y=1, status="empty"),
+                TableDetail(table_id=103, label="B1", x=1, y=2, status="empty"),
+                TableDetail(table_id=104, label="B2", x=2, y=2, status="empty"),
+            ]
+        )
+
+    def get_layout(self, restaurant_id: int) -> Optional[RestaurantSeatsResponse]:
+        return self.data.get(restaurant_id)
+
+    # 用來尋找並更新特定桌子的狀態
+    def get_seat_by_id(self, table_id: int) -> Optional[TableDetail]:
+        for layout in self.data.values():
+            for seat in layout.seats:
+                if seat.table_id == table_id:
+                    return seat
+        return None
 # --- 4. 組合包：產生 Fake Service 的工廠函數 ---
 # 這些變數放在全域，確保所有 Request 共用同一份記憶體資料
 _mock_map_repo = MemoryMapRepository()
 _mock_queue_repo = MemoryQueueRepository()
 _mock_runtime_repo = MemoryQueueRuntimeRepository()
+_mock_table_repo = MemoryTableRepository()
 
-def get_memory_queue_service() -> QueueService:
+def get_memory_queue_service():
     """
     這就是我們要在 main.py 裡用來替換真實依賴的函數
     """
+    from app.services.queue_service import QueueService
     return QueueService(
         queue_repo=_mock_queue_repo,
         queue_runtime_repo=_mock_runtime_repo,
         map_repo=_mock_map_repo
     )
-def get_memory_map_service() -> MapService:
+def get_memory_map_service():
+    from app.services.map_service import MapService
     """
     這就是我們要在 main.py 裡用來替換真實依賴的函數
     """
@@ -219,3 +250,7 @@ def get_memory_map_service() -> MapService:
         queue_repo=_mock_queue_repo,
         queue_runtime_repo=_mock_runtime_repo
     )
+
+def get_memory_table_service():
+    from app.services.table_service import TableService
+    return TableService(repo=_mock_table_repo)

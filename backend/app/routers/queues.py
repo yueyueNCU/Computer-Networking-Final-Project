@@ -5,7 +5,9 @@ from app.schemas.queue_schema import (
     JoinQueueResponse,
     LeaveQueueRequest,
     QueueStatusResponse,
-    QueueNextResponse
+    QueueNextResponse,
+    UserQueueStatusRequest,
+    UserQueueStatusResponse
 )
 from app.interfaces.queue_interface import IQueueService
 from app.domain.errors import (
@@ -15,7 +17,7 @@ from app.domain.errors import (
 )
 
 queue_router = APIRouter(
-    prefix="/api/restaurants",
+    prefix="/api",
     tags=["Queue"]
 )
 
@@ -35,7 +37,7 @@ def error_response(status_code: int, code: str, message: str):
         }
     )
 
-@queue_router.post("/{restaurant_id}/queue", response_model=JoinQueueResponse, status_code=status.HTTP_201_CREATED)
+@queue_router.post("/restaurants/{restaurant_id}/queue", response_model=JoinQueueResponse, status_code=status.HTTP_201_CREATED)
 def join_queue(
     restaurant_id: int, 
     request: JoinQueueRequest, 
@@ -48,7 +50,7 @@ def join_queue(
     except RestaurantNotFoundError as e:
         return error_response(status.HTTP_404_NOT_FOUND, e.code, e.message)
 
-@queue_router.delete("/{restaurant_id}/queue", status_code=status.HTTP_204_NO_CONTENT)
+@queue_router.delete("/restaurants/{restaurant_id}/queue", status_code=status.HTTP_204_NO_CONTENT)
 def leave_queue(
     restaurant_id: int, 
     request: LeaveQueueRequest, 
@@ -61,7 +63,7 @@ def leave_queue(
     except RestaurantNotFoundError as e:
         return error_response(status.HTTP_404_NOT_FOUND, e.code, e.message)
 
-@queue_router.get("/{restaurant_id}/queue/status", response_model=QueueStatusResponse)
+@queue_router.get("/restaurants/{restaurant_id}/queue/status", response_model=QueueStatusResponse)
 def get_queue_status(
     restaurant_id: int, 
     service: IQueueService = Depends(get_queue_service)
@@ -71,12 +73,24 @@ def get_queue_status(
     except RestaurantNotFoundError as e:
         return error_response(status.HTTP_404_NOT_FOUND, e.code, e.message)
 
-@queue_router.get("/{restaurant_id}/queue/next", response_model=QueueNextResponse)
+@queue_router.get("/restaurants/{restaurant_id}/queue/next", response_model=QueueNextResponse)
 def get_queue_next(
     restaurant_id: int, 
     service: IQueueService = Depends(get_queue_service)
 ):
     try:
         return service.get_queue_next(restaurant_id)
+    except RestaurantNotFoundError as e:
+        return error_response(status.HTTP_404_NOT_FOUND, e.code, e.message)
+    
+@queue_router.get("/user/{user_id}/queue", response_model=UserQueueStatusResponse)
+def get_user_queue_status(
+    user_id: int,
+    service: IQueueService = Depends(get_queue_service)
+):
+    try:
+        return service.get_user_queue_status(user_id=user_id)
+    except NotInQueueError as e:
+        return error_response(status.HTTP_400_BAD_REQUEST, e.code, e.message)
     except RestaurantNotFoundError as e:
         return error_response(status.HTTP_404_NOT_FOUND, e.code, e.message)

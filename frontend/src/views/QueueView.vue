@@ -34,13 +34,31 @@ const fetchQueueData = async () => {
   isLoading.value = true
   try {
     const data = await getUserQueueStatus(currentUserId)
-    myQueueStatus.value = data
+    if (data) {
+      myQueueStatus.value = data
+    } else {
+      // 若回傳 null 重置狀態
+      myQueueStatus.value = {
+        restaurant_id: 0,
+        restaurant_name: '未排隊',
+        ticket_number: 0,
+        people_ahead: 0,
+        estimated_wait_time: 0,
+      }
+    }
     const now = new Date()
     lastUpdated.value = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   } catch (error) {
     console.error('更新排隊狀態失敗', error)
-    // 若使用者沒排隊，後端可能回傳 400 或 404，這裡暫時不處理，或是顯示「目前無排隊」
-    myQueueStatus.value.restaurant_name = '目前無排隊資訊'
+    
+    // [修改這裡] 當發生錯誤 (例如 400 Not In Queue)，強制重置狀態為「無排隊」
+    myQueueStatus.value = {
+      restaurant_id: 0, // 關鍵：設為 0 會觸發 v-else 顯示空狀態
+      restaurant_name: '未排隊',
+      ticket_number: 0,
+      people_ahead: 0,
+      estimated_wait_time: 0,
+    }
   } finally {
     isLoading.value = false
   }

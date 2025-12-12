@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 from app.schemas.table_schema import RestaurantSeatsResponse, UpdateTableStatusResponse, UpdateTableStatusRequest
-
+from app.domain.entities import TableEntity
 class ITableService(ABC):
     @abstractmethod
     def get_restaurant_seats(self, restaurant_id: int) -> RestaurantSeatsResponse:
@@ -14,7 +14,7 @@ class ITableService(ABC):
         pass
 
     @abstractmethod
-    def update_table_status(self, table_id: int, request: UpdateTableStatusRequest) -> UpdateTableStatusResponse:
+    def update_table_status(self, restaurant_id: int, table_id: int, new_table_status: str, queue_ticket_number: int) -> UpdateTableStatusResponse:
         """
         更新座位狀態 (入座/離座)
         
@@ -28,7 +28,7 @@ class ITableService(ABC):
 
 class ITableRepository(ABC):
     @abstractmethod
-    def get_tables_by_restaurant(self, restaurant_id: int) -> List[Dict]:
+    def get_tables_by_restaurant(self, restaurant_id: int) -> List[TableEntity]:
         """
         取得特定餐廳的所有座位資訊。
 
@@ -43,7 +43,7 @@ class ITableRepository(ABC):
         pass
 
     @abstractmethod
-    def get_table_by_id(self, table_id: int) -> Optional[Dict]:
+    def get_table_by_id(self, table_id: int) -> Optional[TableEntity]:
         """
         透過 ID 取得單一座位資訊。
 
@@ -58,7 +58,7 @@ class ITableRepository(ABC):
         pass
 
     @abstractmethod
-    def update_status(self, table_id: int, new_status: str) -> Dict:
+    def update_status(self, table_id: int, new_table_status: str, queue_ticket_number: int) -> bool:
         """
         更新座位狀態。
 

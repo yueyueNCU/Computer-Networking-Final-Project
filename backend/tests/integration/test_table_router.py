@@ -2,27 +2,40 @@ import pytest
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from unittest.mock import MagicMock
-from app.routers import table as table_router_module
-from app.routers.table import get_table_service
+
+from app.routers.table import table_router, get_table_service
+
 from app.services.table_service import TableService
-from app.schemas.table_schema import RestaurantSeatsResponse, TableDetail
+from app.interfaces.queue_interface import IQueueRepository, IQueueRuntimeRepository
+from app.interfaces.map_interface import IMapRepository
+from app.interfaces.table_interface import ITableRepository
+from app.domain.entities import QueueEntity, MapEntity, TableEntity
 
 # 建立測試用的 FastAPI App
 app = FastAPI()
-app.include_router(table_router_module.table_router)
+app.include_router(table_router)
 
 client = TestClient(app)
 
 # --- Fixtures ---
 
 @pytest.fixture
-def mock_repo():
-    return MagicMock()
+def mock_repos():
+    table_repo = MagicMock(spec=ITableRepository)
+    map_repo = MagicMock(spec=IMapRepository)
+    queue_repo = MagicMock(spec=IQueueRepository)
+    queue_runtime_repo = MagicMock(spec=IQueueRuntimeRepository)
+    return table_repo, map_repo, queue_repo, queue_runtime_repo
 
 @pytest.fixture
-def service_override(mock_repo):
-    """初始化 Service 時，只傳入 repo"""
-    return TableService(repo=mock_repo)
+def service_override(mock_repos):
+    table_repo, map_repo, queue_repo, queue_runtime_repo = mock_repos
+    return TableService(
+        table_repo=table_repo,
+        map_repo=map_repo,
+        queue_repo=queue_repo,
+        queue_runtime_repo=queue_runtime_repo,
+    )
 
 @pytest.fixture
 def app_with_override(service_override):
@@ -32,94 +45,201 @@ def app_with_override(service_override):
     app.dependency_overrides = {}
 
 
-# --- 1. GET /api/restaurants/{id}/table (取得座位表) ---
 
-def test_get_tables_success(app_with_override, mock_repo):
+def test_get_restaurant_seats_Success(app_with_override, mock_repos):
     """測試成功取得餐廳座位表"""
-    restaurant_id = 2
-    
-    # 模擬 Repo 回傳 Layout 物件
-    mock_layout = RestaurantSeatsResponse(
-        restaurant_id=restaurant_id,
-        restaurant_name="整合測試餐廳",
-        seats=[
-            TableDetail(table_id=101, label="A1", x=1, y=1, status="eating"),
-            TableDetail(table_id=102, label="A2", x=2, y=1, status="empty")
-        ]
-    )
-    mock_repo.get_layout.return_value = mock_layout
+    # Arrange
+    table_repo, map_repo, queue_repo, queue_runtime_repo = mock_repos
 
-    # Act
+    map_repo.get_restaurant_basic_info.return_value= MapEntity(
+                                                                restaurant_id = 2,
+                                                                restaurant_name = "麥克小姐",
+                                                                lat = 24.968, 
+                                                                lng = 121.192,
+                                                                image_url = "https://example.com/burger.jpg",
+                                                                average_price = (150,300),
+                                                                specialties = "義大利麵、漢堡",
+                                                            ) 
+    table_repo.get_tables_by_restaurant.return_value=[
+        TableEntity(
+            table_id=1,
+            restaurant_id=2,
+            label="1桌",
+            x=2,
+            y=5,
+            status="empty"
+        ),
+        TableEntity(
+            table_id=2,
+            restaurant_id=2,
+            label="2桌",
+            x=1,
+            y=4,
+            status="eating"
+        )
+    ]
+    # Act 
+    restaurant_id=2
     response = client.get(f"/api/restaurants/{restaurant_id}/table")
     
     # Assert
     assert response.status_code == 200
     data = response.json()
     assert data["restaurant_id"] == restaurant_id
-    assert data["restaurant_name"] == "整合測試餐廳"
+    assert data["restaurant_name"] == "麥克小姐"
     assert len(data["seats"]) == 2
-    assert data["seats"][0]["label"] == "A1"
+    assert data["seats"][0]["label"] == "1桌"
 
 
-# --- 2. POST /api/tables/{id}/status (更新狀態) ---
-
-def test_update_status_success(app_with_override, mock_repo):
+def test_get_restaurant_seats_RestaurantNotFoundError(app_with_override, mock_repos):
     """測試成功更新狀態"""
-    table_id = 101
-    
-    # 模擬: 找到桌子 (原本是 empty)
-    mock_seat = TableDetail(table_id=table_id, label="A1", x=1, y=1, status="empty")
-    mock_repo.get_seat_by_id.return_value = mock_seat
+    # Arrange
+    table_repo, map_repo, _, _ = mock_repos
+    map_repo.get_restaurant_basic_info.return_value = None # 模擬找不到餐廳
 
     # Act
-    payload = {"action": "eating", "queue_ticket_number": 106}
-    response = client.post(f"/api/tables/{table_id}/status", json=payload)
+    restaurant_id=2
+    response = client.get(f"/api/restaurants/{restaurant_id}/table")
     
     # Assert
+    assert response.status_code == 404
+    data = response.json()
+    
+    # 驗證格式
+    assert "error" in data
+    assert data["error"]["code"] == "RESTAURANT_NOT_FOUND"
+    assert data["error"]["message"] == "Restaurant does not exist."
+
+
+
+
+
+
+def test_update_table_status_TableNotFoundError(app_with_override, mock_repos):
+    """測試錯誤 1: Table 不存在 (404)"""
+    # Arrange
+    table_repo, _, _, _ = mock_repos
+    table_repo.get_table_by_id.return_value = None # 模擬找不到桌子
+
+    # Act
+    restaurant_id=2
+    table_id = 999
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": 106})
+    
+    assert response.status_code == 404
+    data = response.json()
+    
+    # 驗證格式
+    assert "error" in data
+    assert data["error"]["code"] == "TABLE_NOT_FOUND"
+    assert data["error"]["message"] == "Table does not exist."
+
+def test_update_table_status_SecurityCheckFailed(app_with_override, mock_repos):
+    # Arrange
+    table_repo, _, _, _ = mock_repos
+    
+    # 桌子實際上屬於 restaurant_id=1
+    existing_table = TableEntity(
+        table_id=10, restaurant_id=1, label="A1", x=0, y=0, status="empty"
+    )
+    table_repo.get_table_by_id.return_value = existing_table
+    # Act
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": 106})
+
+    assert response.status_code == 404
+    data = response.json()
+    assert "error" in data
+    assert data["error"]["code"] == "TABLE_NOT_FOUND"
+    assert data["error"]["message"] == "Table does not exist."
+
+def test_update_table_status_TableInvalidActionError(app_with_override, mock_repos):
+    # Arrange
+    table_repo, _, _, _ = mock_repos
+    
+    # 桌子已經是 eating 狀態
+    existing_table = TableEntity(
+        table_id=10, restaurant_id=2, label="A1", x=0, y=0, status="eating"
+    )
+    table_repo.get_table_by_id.return_value = existing_table
+
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": 106})
+
+    assert response.status_code == 400
+    data = response.json()
+    assert "error" in data
+    assert data["error"]["code"] == "TABLE_INVALID_ACTION"
+
+def test_update_table_status_CheckIn_Success(app_with_override, mock_repos):
+    # Arrange
+    table_repo, _, queue_repo, queue_runtime_repo = mock_repos
+    
+    restaurant_id = 2
+    table_id = 10
+    ticket_number = 50
+    user_id = 100
+    
+    # 1. 模擬桌子存在且為 empty
+    table_repo.get_table_by_id.return_value = TableEntity(
+        table_id=table_id, restaurant_id=restaurant_id, label="A1", x=0, y=0, status="empty"
+    )
+    
+    # 2. 模擬排隊資料存在 (使用 QueueEntity)
+    queue_repo.get_user_current_queue_by_restaurantId_and_ticketNumber.return_value = QueueEntity(
+        queue_id=1, restaurant_id=restaurant_id, user_id=user_id, ticket_number=ticket_number
+    )
+
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": ticket_number})
+
     assert response.status_code == 200
     data = response.json()
     assert data["table_id"] == table_id
     assert data["new_status"] == "eating"
-    assert "updated_at" in data
+
+def test_update_table_status_CheckIn_NotInQueueError(app_with_override, mock_repos):
+    # Arrange
+    table_repo, _, queue_repo, _ = mock_repos
     
-    # 驗證 Mock 物件狀態被修改
-    assert mock_seat.status == "eating"
-
-def test_update_status_table_not_found(app_with_override, mock_repo):
-    """測試錯誤 1: Table 不存在 (404)"""
-    # 模擬找不到 Table
-    mock_repo.get_seat_by_id.return_value = None
-
-    payload = {"action": "eating", "queue_ticket_number": 106}
-    response = client.post("/api/tables/999/status", json=payload)
+    restaurant_id = 2
     
-    assert response.status_code == 404
-    data = response.json()
-    assert data["detail"]["code"] == "TABLE_NOT_FOUND"
-
-def test_update_status_invalid_action(app_with_override, mock_repo):
-    """測試錯誤 2: 狀態相同 (400)"""
-    # 模擬原本就是 empty
-    mock_seat = TableDetail(table_id=101, label="A1", x=1, y=1, status="empty")
-    mock_repo.get_seat_by_id.return_value = mock_seat
-
-    # 嘗試再設為 empty
-    payload = {"action": "empty", "queue_ticket_number": 106}
-    response = client.post("/api/tables/101/status", json=payload)
+    # 1. 桌子存在
+    table_repo.get_table_by_id.return_value = TableEntity(
+        table_id=10, restaurant_id=restaurant_id, label="A1", x=0, y=0, status="empty"
+    )
     
+    # 2. 排隊資料不存在 (None)
+    queue_repo.get_user_current_queue_by_restaurantId_and_ticketNumber.return_value = None
+
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": 103})
+
     assert response.status_code == 400
     data = response.json()
-    assert data["detail"]["code"] == "TABLE_INVALID_ACTION"
+    assert data["error"]["code"] == "NOT_IN_QUEUE"
 
-def test_update_status_not_in_queue(app_with_override, mock_repo):
-    """測試錯誤 3: 票號錯誤"""
-    # Table 存在且是 empty
-    mock_seat = TableDetail(table_id=101, label="A1", x=1, y=1, status="empty")
-    mock_repo.get_seat_by_id.return_value = mock_seat
-
-    payload = {"action": "eating", "queue_ticket_number": 999}
-    response = client.post("/api/tables/101/status", json=payload)
+def test_update_table_status_CheckOut_Success(app_with_override, mock_repos):
+    # Arrange
+    table_repo, _, queue_repo, queue_runtime_repo = mock_repos
     
-    assert response.status_code == 400
+    restaurant_id = 2
+    table_id = 10
+    
+    # 模擬桌子正在使用中
+    table_repo.get_table_by_id.return_value = TableEntity(
+        table_id=table_id, restaurant_id=restaurant_id, label="A1", x=0, y=0, status="eating"
+    )
+
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "empty","queue_ticket_number": 103})
+
+    assert response.status_code == 200
     data = response.json()
-    assert data["detail"]["code"] == "NOT_IN_QUEUE"
+    assert data["table_id"] == table_id
+    assert data["new_status"] == "empty"

@@ -32,3 +32,23 @@ class MapEntity:
     2             | 麥麥小館         | 24.1 | 121.1 | https://example.com/burger.jpg  | [150, 300]    | 義大利麵、漢堡
     3             | 歐姆瑞斯         | 24.2 | 24.2  | https://example.com/rice.jpg    | [80, 150]     | 咖哩、焗烤飯
 """
+
+
+@dataclass
+class TableEntity:
+    table_id: int
+    restaurant_id: int
+    label: str
+    x: int
+    y: int 
+    status: str
+
+"""
+以下是Table表格，可參考
+
+table_id | restaurant_id | label | x | y | status
+5        | 2             | 1桌   | 1 | 1 | empty
+6        | 3             | 1桌   | 1 | 2 | eating
+7        | 2             | 5桌   | 1 | 5 | eating
+8        | 3             | 2桌   | 1 | 4 | empty
+"""

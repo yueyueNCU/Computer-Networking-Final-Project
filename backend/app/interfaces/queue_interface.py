@@ -94,6 +94,22 @@ class IQueueRepository(ABC):
         """
         pass
     @abstractmethod
+    def get_user_current_queue_by_restaurantId_and_ticketNumber(self, restaurant_id:int, ticket_number: int) -> Optional[QueueEntity]:
+        """
+            檢查使用者目前是否正在排任何隊伍。
+
+            SQL 指令:
+                SELECT *
+                FROM queue
+                WHERE restaurant_id = ? AND ticket_number = ?;
+
+            Returns:
+                Optional[QueueEntity]: 
+                    - 若使用者在排隊中，回傳 QueueEntity 物件 
+                    - 若使用者未排隊，回傳 None
+        """
+        pass
+    @abstractmethod
     def get_total_waiting(self, restaurant_id: int) -> int:
         """
             取得目前該餐廳的等待組數 (N)。
@@ -183,6 +199,16 @@ class IQueueRuntimeRepository(ABC):
             SELECT current_ticket_number
             FROM queue_runtime
             WHERE restaurant_id = ?;
+        """
+        pass
+    @abstractmethod
+    def set_current_ticket_number(self, restaurant_id: int, ticket_number: int) -> None:
+        """
+        取得目前叫號叫到幾號 (用來顯示目前進度)。
+        SQL指令:
+            UPDATE queue_runtime
+            SET current_ticket_number = ticket_number
+            WHERE restaurant_id = ?; 
         """
         pass
     @abstractmethod

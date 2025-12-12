@@ -20,9 +20,9 @@ class MapService(IMapService):
             status = "green"
             total_waiting = self.queue_repo.get_total_waiting(item.restaurant_id)
             table_number = (self.queue_runtime_repo.get_metrics(item.restaurant_id)).table_number
-            if table_number >= total_waiting*0.9:
+            if total_waiting >= table_number*0.8:
                 status="red"
-            elif table_number >= total_waiting*0.7:
+            elif total_waiting >= table_number*0.6:
                 status="yellow"
             else:
                 status="green"

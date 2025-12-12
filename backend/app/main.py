@@ -7,10 +7,11 @@ import os
 # Import Router 和原本的依賴定義
 # 注意：這裡使用 "from app..." 表示執行時的根目錄必須是 app 的上一層 (backend)
 from app.routers.queues import queue_router, get_queue_service
+from app.routers.map import map_router, get_map_service
 
 # Import 我們剛剛寫好的記憶體版 Service
 # 提醒：請確保您已建立 app/infrastructure 資料夾，並將 memory_adapters.py 放在其中
-from app.repositories.fake_all_repo import get_memory_queue_service
+from app.repositories.fake_all_repo import get_memory_queue_service, get_memory_map_service
 
 app = FastAPI(
     title="排隊系統 API (Dev Mode)",
@@ -20,11 +21,8 @@ app = FastAPI(
 
 # 註冊 Router
 app.include_router(queue_router, tags=["Queues"])
-app.include_router(map.router)
+app.include_router(map_router, tags=["Restaurants"])
 
-# ==========================================
-# 關鍵點：啟動時切換成 Fake Database
-# ==========================================
 # 您可以透過環境變數控制，或者在開發階段直接寫死
 USE_MOCK_DB = os.getenv("USE_MOCK_DB", "True").lower() == "true"
 
@@ -34,6 +32,15 @@ if USE_MOCK_DB:
     # 這行程式碼的作用跟 TestClient 的 override 一模一樣
     # 它告訴 FastAPI: 只要有人要 get_queue_service，就給他 get_memory_queue_service
     app.dependency_overrides[get_queue_service] = get_memory_queue_service
+    app.dependency_overrides[get_map_service] = get_memory_map_service
+else:
+    print("[Mode] 使用 真實資料庫 (Production)")
+    # app.dependency_overrides[get_queue_service] = get_real_queue_service
+    # app.dependency_overrides[get_map_service] = get_real_map_service
+    pass 
+    # 注意：如果你在 Router 定義的 get_queue_service 預設就是拋出 Error，
+    # 那這裡的 else 必須要 override，否則程式會報錯 NotImplementedError。
+
 
 @app.get("/")
 def root():

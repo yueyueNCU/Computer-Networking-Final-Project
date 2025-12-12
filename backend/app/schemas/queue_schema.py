@@ -29,3 +29,15 @@ class QueueNextResponse(BaseModel):
     current_number: int
     next_queue_to_call: int
     total_waiting: int 
+
+class UserQueueStatusRequest(BaseModel):
+    """POST api/user/{user_id}/queue 請求體"""
+    user_id: int
+
+class UserQueueStatusResponse(BaseModel):
+    "Get /api/user/{user_id}/queue 回應"
+    restaurant_id: int
+    restaurant_name: str
+    ticket_number: int       # 你的號碼牌
+    people_ahead: int        # 前面還有幾組人 (這就是 N)
+    estimated_wait_time: int # 根據公式算出來的時間 (分鐘)

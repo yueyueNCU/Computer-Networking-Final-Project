@@ -82,3 +82,12 @@ export interface QueueStatusResponse {
   total_waiting: number // 總排隊組數 (N)
   avg_wait_time: number // 平均等待時間 (分鐘)
 }
+
+// 使用者個人的排隊狀態 (對應 /api/user/{user_id}/queue)
+export interface UserQueueStatusResponse {
+  restaurant_id: number
+  restaurant_name: string
+  ticket_number: number // 你的號碼牌
+  people_ahead: number // 前面還有幾組人
+  estimated_wait_time: number // 預估等待時間 (分鐘)
+}

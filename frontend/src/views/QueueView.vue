@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { QueueStatusResponse } from '@/types/RestaurantApi'
-import { getQueueStatus } from '@/services/restaurant'
+import type { UserQueueStatusResponse } from '@/types/RestaurantApi'
+import { getUserQueueStatus } from '@/services/restaurant' // 改用這個 Service
 
-// 1. 模擬使用者的票號 (假設使用者手上拿的是 110 號)
-const myTicketNumber = ref(110)
+// 這裡模擬當前登入的使用者 ID (實際專案可能是從 Pinia 或 Cookie 取得)
+const currentUserId = 123
 
-// 2. 排隊狀態
-const queueStatus = ref<QueueStatusResponse>({
-  restaurant_id: 4,
-  restaurant_name: '麥克小姐',
-  current_number: 100, // 預設值
-  total_waiting: 0,
-  avg_wait_time: 0,
+// 2. 排隊狀態 (改用 UserQueueStatusResponse 格式)
+const myQueueStatus = ref<UserQueueStatusResponse>({
+  restaurant_id: 0,
+  restaurant_name: '載入中...',
+  ticket_number: 0,
+  people_ahead: 0,
+  estimated_wait_time: 0,
 })
 
 // 載入狀態與時間
@@ -25,12 +25,11 @@ const fetchQueueData = async () => {
   isLoading.value = true
 
   try {
-    // 這裡模擬去抓 "麥克小姐" (ID: 4) 的最新狀態
-    // 實際專案中，這裡的 ID 應該是從使用者的排隊紀錄 (LocalStorage/Pinia) 拿出來的
-    const data = await getQueueStatus(4)
+    // 呼叫新 API: GET /api/user/{user_id}/queue
+    const data = await getUserQueueStatus(currentUserId)
 
     // 更新資料
-    queueStatus.value = data
+    myQueueStatus.value = data
 
     // 更新時間
     const now = new Date()
@@ -41,6 +40,7 @@ const fetchQueueData = async () => {
     })
   } catch (error) {
     console.error('更新排隊狀態失敗', error)
+    // 錯誤處理 (例如顯示 alert 或 toast)
   } finally {
     isLoading.value = false
   }
@@ -51,15 +51,17 @@ onMounted(() => {
   fetchQueueData()
 })
 
-// 計算前方還有幾組人
-const peopleAhead = computed(() => {
-  const diff = myTicketNumber.value - queueStatus.value.current_number
-  return diff > 0 ? diff : 0
+// [修改] 根據 API 資料計算 "目前叫號" (作為 UI 顯示用)
+// 邏輯：如果前面有 4 人，我是 106 號，那目前大概是叫到 106 - 4 = 102 號 (或是正在服務 101)
+const approxCurrentNumber = computed(() => {
+  const current = myQueueStatus.value.ticket_number - myQueueStatus.value.people_ahead
+  return current > 0 ? current : 0
 })
 
 // 模擬取消排隊
 const cancelQueue = () => {
   if (confirm('確定要取消排隊嗎？')) {
+    // 這裡未來可以串接 DELETE API
     alert('已取消排隊')
   }
 }
@@ -80,27 +82,27 @@ const cancelQueue = () => {
     </div>
 
     <div class="ticket-card">
-      <div class="restaurant-name">{{ queueStatus.restaurant_name }}</div>
+      <div class="restaurant-name">{{ myQueueStatus.restaurant_name }}</div>
 
       <div class="ticket-info">
         <span class="label">您的號碼</span>
-        <span class="number">{{ myTicketNumber }}</span>
+        <span class="number">{{ myQueueStatus.ticket_number }}</span>
       </div>
 
       <div class="status-grid">
         <div class="status-item highlight full-width">
-          <span class="label">目前叫號</span>
-          <span class="value big-text">{{ queueStatus.current_number }}</span>
+          <span class="label">目前叫號 (預估)</span>
+          <span class="value big-text">{{ approxCurrentNumber }}</span>
         </div>
 
         <div class="status-item">
           <span class="label">前方還有</span>
-          <span class="value">{{ peopleAhead }} 組</span>
+          <span class="value">{{ myQueueStatus.people_ahead }} 組</span>
         </div>
 
         <div class="status-item">
           <span class="label">預估時間</span>
-          <span class="value">{{ queueStatus.avg_wait_time }} 分</span>
+          <span class="value">{{ myQueueStatus.estimated_wait_time }} 分</span>
         </div>
       </div>
 
@@ -215,11 +217,11 @@ const cancelQueue = () => {
   font-family: sans-serif;
 }
 
-/* Grid Layout 修改 */
+/* Grid Layout */
 .status-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* 保持兩欄 */
-  gap: 15px; /*稍微縮小間距讓版面緊湊 */
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
   margin-bottom: 25px;
 }
 
@@ -233,10 +235,10 @@ const cancelQueue = () => {
   border-radius: 8px;
 }
 
-/* 新增樣式：讓元素跨滿兩欄 */
+/* 跨滿兩欄 */
 .status-item.full-width {
-  grid-column: 1 / -1; /* 跨越起始到結束的所有欄位 */
-  padding: 15px; /* 增加一點內距 */
+  grid-column: 1 / -1;
+  padding: 15px;
 }
 
 .status-item.highlight {
@@ -259,7 +261,6 @@ const cancelQueue = () => {
   color: #2c3e50;
 }
 
-/* 加大重點文字 */
 .status-item .value.big-text {
   font-size: 1.8rem;
   line-height: 1.2;

@@ -12,7 +12,7 @@ const queueStatus = ref<QueueStatusResponse>({
   restaurant_name: '麥克小姐',
   current_number: 100, // 預設值
   total_waiting: 0,
-  avg_wait_time: 0
+  avg_wait_time: 0,
 })
 
 // 載入狀態與時間
@@ -23,23 +23,22 @@ const lastUpdated = ref('')
 const fetchQueueData = async () => {
   if (isLoading.value) return
   isLoading.value = true
-  
+
   try {
     // 這裡模擬去抓 "麥克小姐" (ID: 4) 的最新狀態
     // 實際專案中，這裡的 ID 應該是從使用者的排隊紀錄 (LocalStorage/Pinia) 拿出來的
     const data = await getQueueStatus(4)
-    
+
     // 更新資料
     queueStatus.value = data
-    
+
     // 更新時間
     const now = new Date()
-    lastUpdated.value = now.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
+    lastUpdated.value = now.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
     })
-    
   } catch (error) {
     console.error('更新排隊狀態失敗', error)
   } finally {
@@ -69,17 +68,11 @@ const cancelQueue = () => {
 <template>
   <div class="queue-container">
     <div class="refresh-controls">
-      <button 
-        class="reload-btn" 
-        @click="fetchQueueData" 
-        :disabled="isLoading"
-      >
+      <button class="reload-btn" @click="fetchQueueData" :disabled="isLoading">
         <span v-if="isLoading">更新中...</span>
         <span v-else>更新資訊</span>
       </button>
-      <div v-if="lastUpdated" class="last-updated-label">
-        最後更新於: {{ lastUpdated }}
-      </div>
+      <div v-if="lastUpdated" class="last-updated-label">最後更新於: {{ lastUpdated }}</div>
     </div>
 
     <div class="header">
@@ -88,7 +81,7 @@ const cancelQueue = () => {
 
     <div class="ticket-card">
       <div class="restaurant-name">{{ queueStatus.restaurant_name }}</div>
-      
+
       <div class="ticket-info">
         <span class="label">您的號碼</span>
         <span class="number">{{ myTicketNumber }}</span>
@@ -155,7 +148,7 @@ const cancelQueue = () => {
   border: 1px solid #ddd;
   padding: 8px 14px; /* 稍微小一點點，因為排隊頁面比較緊湊 */
   border-radius: 50px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: bold;
@@ -182,7 +175,7 @@ const cancelQueue = () => {
   background-color: rgba(255, 255, 255, 0.9);
   padding: 4px 8px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* ... (保留原本的 header, ticket-card, status-grid 等樣式) ... */
@@ -197,7 +190,7 @@ const cancelQueue = () => {
   width: 100%;
   max-width: 340px;
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   padding: 30px 20px;
   text-align: center;
   margin-bottom: 30px;

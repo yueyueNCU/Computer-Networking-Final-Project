@@ -1,6 +1,7 @@
 # Path: app/main.py
 from fastapi import FastAPI
 from app.routers import map
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 
@@ -19,6 +20,18 @@ app = FastAPI(
     version="0.1.0"
 )
 
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = origins,
+    allow_credentials = True,
+    allow_methods = ["*"],
+    allow_headers = ["*"],
+)
 # 註冊 Router
 app.include_router(queue_router, tags=["Queues"])
 app.include_router(map_router, tags=["Restaurants"])

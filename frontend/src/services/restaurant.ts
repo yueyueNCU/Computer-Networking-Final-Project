@@ -56,7 +56,11 @@ export async function getRestaurants(): Promise<RestaurantListResponse> {
 
   // 直接回傳假資料，而不是去呼叫 API
   // 因為這是一個 async 函式，它會自動把結果包成 Promise
-  return MOCK_RESTAURANTS
+  const response = await fetch(`http://localhost:8000/api/restaurants`)
+  if (!response.ok) {
+    throw new Error('Network response was not ok')
+  }
+  return await response.json()
 }
 
 /* // 等後端建置好後，解開這段程式碼並註解掉上面的 Mock 版本即可

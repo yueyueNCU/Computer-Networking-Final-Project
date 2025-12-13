@@ -1,26 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router'; // 1. 引入 useRoute 來抓網址參數
 import type { SeatDetail } from '../types/RestaurantApi';
-// 引入剛剛寫好的 Service
 import { seatService } from '../services/seatService';
 
-// --- 1. 資料變數 (這裡改成空陣列，等待資料載入) ---
-const seats = ref<SeatDetail[]>([]); 
+const route = useRoute(); // 取得目前的路由資訊
+const seats = ref<SeatDetail[]>([]);
 const nextQueueNumber = ref(106);
 
-// --- 2. 生命週期 Hooks ---
-// 當這個 html 骨架被掛載到畫面上時，自動執行
-onMounted(async () => {
-  // 3. 呼叫 Service (關鍵協作點！)
-  // await 的意思是：「暫停在這裡，等 seatService.getSeats 做完再往下走」
-  // 這時候 JavaScript 引擎會去跑 service 裡的 setTimeout，0.5秒後回來
-  seats.value = await seatService.getSeats(1);
-});
+// --- 新增狀態變數 ---
+const isLoading = ref(true);      // 是否正在載入
+const errorMessage = ref('');     // 錯誤訊息 (空字串代表沒錯誤)
 
-// --- 3. 彈窗控制 ---
+// --- 彈窗控制 (保持不變) ---
 const showModal = ref(false);
 const selectedSeat = ref<SeatDetail | null>(null);
 
+// ... (handleSeatClick, closeModal, confirmAction, modalTitle 邏輯保持不變，請保留它們) ...
 const handleSeatClick = (seat: SeatDetail) => {
   selectedSeat.value = seat;
   showModal.value = true;
@@ -31,27 +27,16 @@ const closeModal = () => {
   selectedSeat.value = null;
 };
 
-// --- 4. 修改後的確認動作 (加入 Service 呼叫) ---
 const confirmAction = async () => {
   if (!selectedSeat.value) return;
-
-  // 1. 先決定新狀態是什麼
   const newStatus = selectedSeat.value.status === 'eating' ? 'empty' : 'eating';
-  
-  // 2. 呼叫 Service 通知後端 (雖然現在是假的，但結構是對的)
-  // 這裡用了 await，代表會等後端回應成功後，才繼續往下執行
   const success = await seatService.updateTableStatus(selectedSeat.value.table_id, newStatus);
-
-  // 3. 如果後端說 OK，前端才更新畫面
   if (success) {
     selectedSeat.value.status = newStatus;
-    
-    if (newStatus === 'eating') {
-      nextQueueNumber.value++;
-    }
+    if (newStatus === 'eating') nextQueueNumber.value++;
     closeModal();
   } else {
-    alert("更新失敗，請稍後再試");
+    alert("更新失敗");
   }
 };
 
@@ -59,52 +44,95 @@ const modalTitle = computed(() => {
   if (!selectedSeat.value) return '';
   return selectedSeat.value.status === 'eating' ? '即將清桌' : '即將帶位';
 });
+
+// --- 修改生命週期 ---
+onMounted(async () => {
+  // 1. 從網址取得 ID (route.params.id 是字串，要轉成數字)
+  const restaurantId = Number(route.params.id);
+
+  // 防呆：如果 ID 不是數字
+  if (isNaN(restaurantId)) {
+    errorMessage.value = "無效的餐廳 ID";
+    isLoading.value = false;
+    return;
+  }
+
+  try {
+    // 2. 呼叫 Service
+    const data = await seatService.getSeats(restaurantId);
+    
+    // 模擬：如果回傳空陣列，假設是找不到餐廳 (視後端實作而定)
+    if (data.length === 0) {
+        throw new Error("找不到該餐廳資料");
+    }
+
+    seats.value = data;
+  } catch (error) {
+    // 3. 錯誤處理
+    console.error(error);
+    errorMessage.value = "讀取資料失敗，請稍後再試。";
+  } finally {
+    // 4. 無論成功失敗，都把 Loading 關掉
+    isLoading.value = false;
+  }
+});
 </script>
 
 <template>
   <div class="seat-map-container">
-    <h2 class="title">寶咖咖座位管理系統</h2>
+    
+    <div v-if="isLoading" class="loading-state">
+      <h2>資料讀取中...</h2>
+    </div>
 
-    <div class="grid-container">
-      <div 
-        v-for="seat in seats" 
-        :key="seat.table_id"
-        class="seat-item"
-        :class="{ 
-          'status-eating': seat.status === 'eating', 
-          'status-empty': seat.status === 'empty' 
-        }"
-        :style="{ gridColumn: seat.x, gridRow: seat.y }"
-        @click="handleSeatClick(seat)"
-      >
-        <div class="seat-icon">
-          <span v-if="seat.status === 'eating'">🍽️</span>
+    <div v-else-if="errorMessage" class="error-state">
+      <h2>⚠️ 錯誤</h2>
+      <p>{{ errorMessage }}</p>
+    </div>
+
+    <div v-else class="content-wrapper">
+      <h2 class="title">寶咖咖座位管理系統 (餐廳 ID: {{ $route.params.id }})</h2>
+
+      <div class="grid-container">
+        <div 
+          v-for="seat in seats" 
+          :key="seat.table_id"
+          class="seat-item"
+          :class="{ 
+            'status-eating': seat.status === 'eating', 
+            'status-empty': seat.status === 'empty' 
+          }"
+          :style="{ gridColumn: seat.x, gridRow: seat.y }"
+          @click="handleSeatClick(seat)"
+        >
+          <div class="seat-icon">
+            <span v-if="seat.status === 'eating'">🍽️</span>
+          </div>
+          <div class="seat-label">{{ seat.label }}</div>
         </div>
-        <div class="seat-label">{{ seat.label }}</div>
+      </div>
+
+      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+         <div class="modal-content">
+            <h3>{{ modalTitle }}</h3>
+            <div class="modal-info">
+              <div v-if="selectedSeat?.status === 'empty'" class="queue-info">
+                號碼: <span class="highlight">{{ nextQueueNumber }}號</span>
+              </div>
+              <div class="table-info">
+                桌號: {{ selectedSeat?.label }}
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn btn-green" @click="confirmAction">
+                {{ selectedSeat?.status === 'eating' ? '清桌' : '帶位' }}
+              </button>
+              <button class="btn btn-yellow" @click="closeModal">取消</button>
+            </div>
+         </div>
       </div>
     </div>
 
-    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content">
-        <h3>{{ modalTitle }}</h3>
-        
-        <div class="modal-info">
-          <div v-if="selectedSeat?.status === 'empty'" class="queue-info">
-            號碼: <span class="highlight">{{ nextQueueNumber }}號</span>
-          </div>
-          <div class="table-info">
-            桌號: {{ selectedSeat?.label }}
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn btn-green" @click="confirmAction">
-            {{ selectedSeat?.status === 'eating' ? '清桌' : '帶位' }}
-          </button>
-          <button class="btn btn-yellow" @click="closeModal">取消</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -223,6 +251,27 @@ const modalTitle = computed(() => {
   cursor: pointer;
   color: white;
   font-weight: bold;
+}
+
+.loading-state, .error-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+}
+
+.error-state h2 {
+  color: #a52a2a;
+  font-size: 2rem;
+}
+
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 .btn-green { background-color: #7bc07b; }

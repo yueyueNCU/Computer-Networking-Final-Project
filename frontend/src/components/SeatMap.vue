@@ -1,80 +1,92 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router'; // 1. 引入 useRoute 來抓網址參數
-import type { SeatDetail } from '../types/RestaurantApi';
-import { seatService } from '../services/seatService';
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+// 引入 API
+import { getSeats, updateTableStatus, getNextQueueInfo } from '@/services/restaurant';
+import type { SeatDetail } from '@/types/RestaurantApi';
 
-const route = useRoute(); // 取得目前的路由資訊
+const route = useRoute();
+const restaurantId = Number(route.params.id);
 const seats = ref<SeatDetail[]>([]);
-const nextQueueNumber = ref(106);
+// 增加一個簡單的讀取狀態，讓畫面更順暢
+const isLoading = ref(true);
 
-// --- 新增狀態變數 ---
-const isLoading = ref(true);      // 是否正在載入
-const errorMessage = ref('');     // 錯誤訊息 (空字串代表沒錯誤)
-
-// --- 彈窗控制 (保持不變) ---
-const showModal = ref(false);
-const selectedSeat = ref<SeatDetail | null>(null);
-
-// ... (handleSeatClick, closeModal, confirmAction, modalTitle 邏輯保持不變，請保留它們) ...
-const handleSeatClick = (seat: SeatDetail) => {
-  selectedSeat.value = seat;
-  showModal.value = true;
-};
-
-const closeModal = () => {
-  showModal.value = false;
-  selectedSeat.value = null;
-};
-
-const confirmAction = async () => {
-  if (!selectedSeat.value) return;
-  const newStatus = selectedSeat.value.status === 'eating' ? 'empty' : 'eating';
-  const success = await seatService.updateTableStatus(selectedSeat.value.table_id, newStatus);
-  if (success) {
-    selectedSeat.value.status = newStatus;
-    if (newStatus === 'eating') nextQueueNumber.value++;
-    closeModal();
-  } else {
-    alert("更新失敗");
-  }
-};
-
-const modalTitle = computed(() => {
-  if (!selectedSeat.value) return '';
-  return selectedSeat.value.status === 'eating' ? '即將清桌' : '即將帶位';
-});
-
-// --- 修改生命週期 ---
-onMounted(async () => {
-  // 1. 從網址取得 ID (route.params.id 是字串，要轉成數字)
-  const restaurantId = Number(route.params.id);
-
-  // 防呆：如果 ID 不是數字
-  if (isNaN(restaurantId)) {
-    errorMessage.value = "無效的餐廳 ID";
-    isLoading.value = false;
-    return;
-  }
-
+// 讀取座位畫面
+const loadSeats = async () => {
+  if (!restaurantId) return;
+  isLoading.value = true;
   try {
-    // 2. 呼叫 Service
-    const data = await seatService.getSeats(restaurantId);
-    
-    // 模擬：如果回傳空陣列，假設是找不到餐廳 (視後端實作而定)
-    if (data.length === 0) {
-        throw new Error("找不到該餐廳資料");
-    }
-
+    const data = await getSeats(restaurantId);
     seats.value = data;
   } catch (error) {
-    // 3. 錯誤處理
-    console.error(error);
-    errorMessage.value = "讀取資料失敗，請稍後再試。";
+    console.error('讀取座位失敗:', error);
   } finally {
-    // 4. 無論成功失敗，都把 Loading 關掉
     isLoading.value = false;
   }
+};
+
+// [核心] 點擊座位的處理流程 (維持你原本的 window.confirm 邏輯)
+const handleSeatClick = async (seat: SeatDetail) => {
+  let ticketToSeat = 0; // 這次要帶位的號碼
+
+  // --- 狀況 A：空桌 (empty) -> 要帶客人入座 (eating) ---
+  if (seat.status === 'empty') {
+    try {
+      // 步驟 1：前端主動去問後端「現在下一號是誰？」
+      const queueInfo = await getNextQueueInfo(restaurantId);
+      
+      // 步驟 2：判斷有沒有人排隊
+      if (queueInfo && queueInfo.next_queue_to_call > 0) {
+        ticketToSeat = queueInfo.next_queue_to_call;
+        
+        // 步驟 3：跳出確認視窗
+        const confirmSeat = window.confirm(
+          `【帶位確認】\n\n下一組等待客人是： ${ticketToSeat} 號\n請確認讓客人入座 ${seat.label} 嗎？`
+        );
+        
+        if (!confirmSeat) return;
+
+      } else {
+        const confirmForce = window.confirm("目前沒有排隊的客人，要直接開桌嗎？");
+        if (!confirmForce) return;
+        ticketToSeat = 0;
+      }
+    } catch (e) {
+      alert("無法取得排隊資訊，請檢查網路");
+      return;
+    }
+
+    // 步驟 4：呼叫 API 更新
+    await sendUpdate(seat, 'eating', ticketToSeat);
+  } 
+  
+  // --- 狀況 B：用餐中 (eating) -> 客人走了要清桌 (empty) ---
+  else {
+    const confirmClear = window.confirm(`確認 ${seat.label} 已結帳離席，要清空桌子嗎？`);
+    if (!confirmClear) return;
+    
+    await sendUpdate(seat, 'empty', 0);
+  }
+};
+
+// 輔助函式：發送更新請求
+const sendUpdate = async (seat: SeatDetail, status: 'eating' | 'empty', ticket: number) => {
+  try {
+    const success = await updateTableStatus(restaurantId, seat.table_id, status, ticket);
+    
+    if (success) {
+      seat.status = status;
+    } else {
+      alert('更新失敗！後端拒絕了請求');
+    }
+  } catch (error) {
+    console.error('更新錯誤:', error);
+    alert('連線錯誤');
+  }
+};
+
+onMounted(() => {
+  loadSeats();
 });
 </script>
 
@@ -85,14 +97,8 @@ onMounted(async () => {
       <h2>資料讀取中...</h2>
     </div>
 
-    <div v-else-if="errorMessage" class="error-state">
-      <h2>⚠️ 錯誤</h2>
-      <p>{{ errorMessage }}</p>
-    </div>
-
     <div v-else class="content-wrapper">
-      <h2 class="title">寶咖咖座位管理系統 (餐廳 ID: {{ $route.params.id }})</h2>
-
+      
       <div class="grid-container">
         <div 
           v-for="seat in seats" 
@@ -112,25 +118,6 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-         <div class="modal-content">
-            <h3>{{ modalTitle }}</h3>
-            <div class="modal-info">
-              <div v-if="selectedSeat?.status === 'empty'" class="queue-info">
-                號碼: <span class="highlight">{{ nextQueueNumber }}號</span>
-              </div>
-              <div class="table-info">
-                桌號: {{ selectedSeat?.label }}
-              </div>
-            </div>
-            <div class="modal-actions">
-              <button class="btn btn-green" @click="confirmAction">
-                {{ selectedSeat?.status === 'eating' ? '清桌' : '帶位' }}
-              </button>
-              <button class="btn btn-yellow" @click="closeModal">取消</button>
-            </div>
-         </div>
-      </div>
     </div>
 
   </div>
@@ -143,16 +130,8 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   padding: 2rem;
-  background-color: #cccccc; /* 灰色背景 */
-  min-height: 100vh;
+  /* background-color: #cccccc; */ /* 移除灰色背景，讓它融入外層 */
   width: 100%;
-}
-
-.title {
-  font-size: 2rem;
-  margin-bottom: 2rem;
-  color: #333;
-  font-weight: bold;
 }
 
 /* 網格系統 CSS Grid */
@@ -174,6 +153,7 @@ onMounted(async () => {
   height: 100px;
   transition: transform 0.2s;
   box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+  border-radius: 12px; /* 圓角好看一點 */
 }
 
 .seat-item:hover {
@@ -182,12 +162,14 @@ onMounted(async () => {
 
 /* 狀態顏色 */
 .status-empty {
-  background-color: #a9a9a9; /* 深灰色代表空桌 */
+  background-color: #bdc3c7; /* 灰色代表空桌 */
+  color: #2c3e50;
 }
 
 .status-eating {
-  background-color: #d3d3d3; /* 淺灰代表用餐 */
-  border: 4px solid #a52a2a; /* 紅框代表有人 */
+  background-color: #e74c3c; /* 紅色代表用餐 */
+  color: white;
+  border: 3px solid #c0392b; 
 }
 
 .seat-icon {
@@ -198,73 +180,15 @@ onMounted(async () => {
 .seat-label {
   margin-top: 5px;
   font-weight: bold;
-  color: #000;
 }
 
-/* Modal 彈窗樣式 */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.5); /* 半透明黑底 */
+.loading-state {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 999;
-}
-
-.modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 10px;
-  width: 300px;
-  text-align: center;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-}
-
-.modal-content h3 {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-  font-weight: bold;
-  color: #333;
-}
-
-.modal-info {
-  font-size: 1.2rem;
-  margin-bottom: 2rem;
-  text-align: left;
-  padding-left: 2rem;
-  color: #333;
-  line-height: 1.6;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: space-around;
-}
-
-.btn {
-  padding: 0.5rem 1.5rem;
-  border: none;
-  border-radius: 5px;
-  font-size: 1rem;
-  cursor: pointer;
-  color: white;
-  font-weight: bold;
-}
-
-.loading-state, .error-state {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+  height: 200px;
   width: 100%;
-}
-
-.error-state h2 {
-  color: #a52a2a;
-  font-size: 2rem;
+  color: #666;
 }
 
 .content-wrapper {
@@ -273,7 +197,4 @@ onMounted(async () => {
   align-items: center;
   width: 100%;
 }
-
-.btn-green { background-color: #7bc07b; }
-.btn-yellow { background-color: #f0c040; }
 </style>

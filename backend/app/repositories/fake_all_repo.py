@@ -1,121 +1,290 @@
 from typing import Optional, List, Dict, Tuple
 from app.interfaces.queue_interface import IQueueRepository, IQueueRuntimeRepository
 from app.interfaces.map_interface import IMapRepository
-from app.services.queue_service import QueueService
-
+from app.interfaces.table_interface import ITableRepository
+from app.domain.entities import MapEntity, QueueEntity, TableEntity
+from app.domain.value_objects import RestaurantMetrics
+from app.schemas.table_schema import RestaurantSeatsResponse, TableDetail
 # --- 1. 模擬 Map Repository (餐廳資訊) ---
 class MemoryMapRepository(IMapRepository):
-    def check_exists(self, restaurant_id: int) -> bool:
-        return restaurant_id < 100
+    def get_restaurant_basic_info(self, restaurant_id: int) -> Optional[MapEntity]:
+        if restaurant_id==1:
+            return MapEntity(
+                restaurant_id=1,
+                restaurant_name="麥克小姐",
+                lat= 24.968,
+                lng= 121.192,
+                image_url="https://example.com/burger.jpg",
+                average_price= (150,300),
+                specialties="義大利麵、漢堡"
+            )
+        elif restaurant_id==2:
+            return MapEntity(
+                restaurant_id=2,
+                restaurant_name="歐姆萊斯",
+                lat= 24.970,
+                lng= 121.195,
+                image_url="https://example.com/rice.jpg",
+                average_price= (150,300),
+                specialties="義大利麵、漢堡"
+            )
+        else:
+            return None
+        
 
-    def get_restaurant_basic_info(self, restaurant_id: int) -> dict:
-        return {
-            "restaurant_id": restaurant_id,
-            "restaurant_name": f"測試餐廳 No.{restaurant_id}",
-            "address": "虛擬記憶體路 123 號"
-        }
-
-    def get_all_restaurants(self) -> list:
+    def get_all_restaurants(self) ->  List[MapEntity]:
         return [
-            {
-                "restaurant_id": 2,
-                "restaurant_name": "麥克小姐",
-                "lat": 24.968,
-                "lng": 121.192,
-                "image_url": "https://example.com/burger.jpg",
-                "average_price": "150-300",
-                "specialties": "義大利麵、漢堡",
-                "status": "green"
-            },
-            {
-                "restaurant_id": 3,
-                "restaurant_name": "歐姆萊斯",
-                "lat": 24.970,
-                "lng": 121.195,
-                "image_url": "https://example.com/rice.jpg",
-                "average_price": "80-150",
-                "specialties": "咖哩、豬排飯",
-                "status": "red"
-            }
+            MapEntity(
+                restaurant_id=1,
+                restaurant_name="麥克小姐",
+                lat= 24.968,
+                lng= 121.192,
+                image_url="https://example.com/burger.jpg",
+                average_price= (150,300),
+                specialties="義大利麵、漢堡"
+            ),
+            MapEntity(
+                restaurant_id=2,
+                restaurant_name="歐姆萊斯",
+                lat= 24.970,
+                lng= 121.195,
+                image_url="https://example.com/rice.jpg",
+                average_price= (150,300),
+                specialties="義大利麵、漢堡"
+            )
         ]
-
 # --- 2. 模擬 Queue Repository (排隊資料) ---
 class MemoryQueueRepository(IQueueRepository):
     def __init__(self):
-        # key: restaurant_id, value: list of user_ids
-        self.queues: Dict[int, List[int]] = {}
-        # key: user_id, value: restaurant_id (反向查詢)
-        self.user_status: Dict[int, int] = {}
+        # 使用 List 來模擬資料庫的 Table
+        self._queue_data: List[QueueEntity] = []
+        # 模擬 Auto Increment 的 Primary Key
+        self._id_counter = 1
 
     def add_to_queue(self, restaurant_id: int, user_id: int, ticket_number: int) -> bool:
         """
-        修正 1: 補上 ticket_number 參數以符合介面定義
-        雖然記憶體模擬版可能暫時用不到 ticket_number (因為是用 list 順序)，
-        但必須維持介面一致性。
+        模擬 INSERT INTO queue ...
         """
-        if restaurant_id not in self.queues:
-            self.queues[restaurant_id] = []
-        self.queues[restaurant_id].append(user_id)
-        self.user_status[user_id] = restaurant_id
+        new_entry = QueueEntity(
+            queue_id=self._id_counter,
+            restaurant_id=restaurant_id,
+            user_id=user_id,
+            ticket_number=ticket_number
+        )
+        self._queue_data.append(new_entry)
+        self._id_counter += 1
         return True
-
-    def get_user_current_queue(self, user_id: int) -> Optional[int]:
-        return self.user_status.get(user_id)
-
-    def get_total_waiting(self, restaurant_id: int) -> int:
-        return len(self.queues.get(restaurant_id, []))
 
     def remove_from_queue(self, restaurant_id: int, user_id: int) -> bool:
         """
-        修正: 回傳型別改為 bool 以符合介面定義
+        模擬 DELETE FROM queue WHERE ...
         """
-        if restaurant_id in self.queues and user_id in self.queues[restaurant_id]:
-            self.queues[restaurant_id].remove(user_id)
-        if user_id in self.user_status:
-            del self.user_status[user_id]
-        return True
-            
-    def get_next_queue_to_call(self, restaurant_id: int) -> Optional[int]:
-        # 簡單模擬：這裡回傳的是排在第一位的 user_id (或對應的號碼邏輯)
-        # 實際依您的業務邏輯調整
-        queue = self.queues.get(restaurant_id, [])
-        return queue[0] if queue else None
+        original_count = len(self._queue_data)
+        # 過濾掉符合條件的項目 (相當於刪除)
+        self._queue_data = [
+            q for q in self._queue_data 
+            if not (q.restaurant_id == restaurant_id and q.user_id == user_id)
+        ]
+        # 如果長度有變少，代表刪除成功
+        return len(self._queue_data) < original_count
 
-# --- 3. 模擬 Runtime Repository (號碼牌與指標) ---
+    def get_user_current_queue(self, user_id: int) -> Optional[QueueEntity]:
+        """
+        模擬 SELECT * FROM queue WHERE user_id = ?
+        """
+        for q in self._queue_data:
+            if q.user_id == user_id:
+                return q
+        return None
+    def get_user_current_queue_by_restaurantId_and_ticketNumber(self, restaurant_id: int, ticket_number: int) -> Optional[QueueEntity]:
+        """
+        模擬 SELECT * FROM queue WHERE restaurant_id = ? AND ticket_number = ?
+        """
+        for q in self._queue_data:
+            if q.restaurant_id == restaurant_id and q.ticket_number == ticket_number:
+                return q
+        return None
+    
+    def get_total_waiting(self, restaurant_id: int) -> int:
+        """
+        模擬 SELECT COUNT(*) ...
+        """
+        count = 0
+        for q in self._queue_data:
+            if q.restaurant_id == restaurant_id:
+                count += 1
+        return count
+
+    def get_next_queue_to_call(self, restaurant_id: int) -> Optional[int]:
+        """
+        模擬 SELECT MIN(ticket_number) ...
+        """
+        tickets = [
+            q.ticket_number 
+            for q in self._queue_data 
+            if q.restaurant_id == restaurant_id
+        ]
+        if not tickets:
+            return None
+        return min(tickets)
+    def get_people_ahead(self, restaurant_id: int, user_id: int) -> int:
+        """
+        取得排在特定使用者前面的人數。
+        
+        SQL 邏輯 (概念):
+            SELECT COUNT(*) 
+            FROM queue 
+            WHERE restaurant_id = ? 
+              AND ticket_number < (
+                  SELECT ticket_number 
+                  FROM queue 
+                  WHERE restaurant_id = ? AND user_id = ?
+              )
+        """
+        # 1. 先找到該使用者的 ticket_number
+        target_ticket = None
+        for q in self._queue_data:
+            if q.restaurant_id == restaurant_id and q.user_id == user_id:
+                target_ticket = q.ticket_number
+                break
+        
+        # 如果使用者不在該餐廳的隊伍中，回傳 0 (或是您可以選擇拋出 NotInQueueError)
+        if target_ticket is None:
+            return 0
+
+        # 2. 計算同一間餐廳中，ticket_number 小於 target_ticket 的人數
+        count = 0
+        for q in self._queue_data:
+            if q.restaurant_id == restaurant_id and q.ticket_number < target_ticket:
+                count += 1
+        
+        return count
+# --- 3. 模擬 Queue Runtime Repository (叫號狀態) ---
 class MemoryQueueRuntimeRepository(IQueueRuntimeRepository):
     def __init__(self):
-        # key: restaurant_id, value: int
-        self.next_numbers: Dict[int, int] = {}
-        self.current_numbers: Dict[int, int] = {}
+        # 使用 Dict 模擬不同餐廳的狀態表
+        # Key: restaurant_id
+        # Value: 包含 current_ticket_number, next_ticket_number, metrics 的字典
+        self._runtime_data = {
+            1: {
+                "current_ticket_number": 0,
+                "next_ticket_number": 1,
+                "metrics": RestaurantMetrics(average_wait_time=10, table_number=5)
+            },
+            2: {
+                "current_ticket_number": 14,
+                "next_ticket_number": 17,
+                "metrics": RestaurantMetrics(average_wait_time=8, table_number=6)
+            }
+        }
 
-    def get_next_ticket_number(self, restaurant_id: int) -> int:
-        return self.next_numbers.get(restaurant_id, 1)
-
-    def increment_next_ticket_number(self, restaurant_id: int):
-        current = self.next_numbers.get(restaurant_id, 1)
-        self.next_numbers[restaurant_id] = current + 1
+    def _ensure_restaurant_exists(self, restaurant_id: int):
+        """輔助函數：如果請求的餐廳不在記憶體中，初始化一組預設值"""
+        if restaurant_id not in self._runtime_data:
+            self._runtime_data[restaurant_id] = {
+                "current_ticket_number": 0,
+                "next_ticket_number": 1,
+                "metrics": RestaurantMetrics(average_wait_time=15, table_number=4)
+            }
 
     def get_current_ticket_number(self, restaurant_id: int) -> int:
-        # 這裡模擬目前叫到的號碼，預設比下一張號碼小 5 號 (製造排隊感)
-        next_num = self.next_numbers.get(restaurant_id, 1)
-        return max(1, next_num - 5)
+        self._ensure_restaurant_exists(restaurant_id)
+        return self._runtime_data[restaurant_id]["current_ticket_number"]
 
-    def get_metrics(self, restaurant_id: int) -> Tuple[int, int]:
-        # 固定回傳 (平均用餐時間 15 分鐘, 總座位 10)
-        return (15, 10)
+    def set_current_ticket_number(self, restaurant_id: int, ticket_number: int) -> None:
+        self._ensure_restaurant_exists(restaurant_id)
+        self._runtime_data[restaurant_id]["current_ticket_number"] = ticket_number
 
+    def get_next_ticket_number(self, restaurant_id: int) -> int:
+        self._ensure_restaurant_exists(restaurant_id)
+        return self._runtime_data[restaurant_id]["next_ticket_number"]
+
+    def increment_next_ticket_number(self, restaurant_id: int) -> None:
+        self._ensure_restaurant_exists(restaurant_id)
+        self._runtime_data[restaurant_id]["next_ticket_number"] += 1
+
+    def get_metrics(self, restaurant_id: int) -> RestaurantMetrics:
+        self._ensure_restaurant_exists(restaurant_id)
+        return self._runtime_data[restaurant_id]["metrics"]
+    
+class MemoryTableRepository(ITableRepository):
+    def __init__(self):
+        # 模擬資料庫
+        # key: table_id, value: TableEntity
+        self._tables: Dict[int, TableEntity] = {
+            # 餐廳 1 的桌子
+            101: TableEntity(table_id=101, restaurant_id=1, label="A1", x=1, y=1, status="eating"),
+            102: TableEntity(table_id=102, restaurant_id=1, label="A2", x=2, y=1, status="empty"),
+            # 餐廳 2 的桌子
+            201: TableEntity(table_id=201, restaurant_id=2, label="VIP1", x=1, y=1, status="empty"),
+            202: TableEntity(table_id=202, restaurant_id=2, label="VIP2", x=2, y=2, status="eating"),
+        }
+
+    def get_tables_by_restaurant(self, restaurant_id: int) -> List[TableEntity]:
+        """
+        取得特定餐廳的所有座位資訊。
+        """
+        # 回傳 TableEntity 的列表
+        return [t for t in self._tables.values() if t.restaurant_id == restaurant_id]
+
+    def get_table_by_id(self, table_id: int) -> Optional[TableEntity]:
+        """
+        透過 ID 取得單一座位資訊。
+        """
+        table = self._tables.get(table_id)
+        if table:
+            # 回傳副本避免直接修改
+            return TableEntity(
+                table_id=table.table_id,
+                restaurant_id=table.restaurant_id,
+                label=table.label,
+                x=table.x,
+                y=table.y,
+                status=table.status
+            )
+        return None
+
+    def update_status(self, table_id: int, new_table_status: str, queue_ticket_number: int) -> bool:
+        """
+        更新座位狀態。
+        """
+        if table_id in self._tables:
+            self._tables[table_id].status = new_table_status
+            return True
+        return False
 # --- 4. 組合包：產生 Fake Service 的工廠函數 ---
 # 這些變數放在全域，確保所有 Request 共用同一份記憶體資料
 _mock_map_repo = MemoryMapRepository()
 _mock_queue_repo = MemoryQueueRepository()
 _mock_runtime_repo = MemoryQueueRuntimeRepository()
+_mock_table_repo = MemoryTableRepository()
 
-def get_memory_queue_service() -> QueueService:
+def get_memory_queue_service():
     """
     這就是我們要在 main.py 裡用來替換真實依賴的函數
     """
+    from app.services.queue_service import QueueService
     return QueueService(
         queue_repo=_mock_queue_repo,
         queue_runtime_repo=_mock_runtime_repo,
         map_repo=_mock_map_repo
+    )
+def get_memory_map_service():
+    from app.services.map_service import MapService
+    """
+    這就是我們要在 main.py 裡用來替換真實依賴的函數
+    """
+    return MapService(
+        map_repo=_mock_map_repo,
+        queue_repo=_mock_queue_repo,
+        queue_runtime_repo=_mock_runtime_repo
+    )
+
+def get_memory_table_service():
+    from app.services.table_service import TableService
+    return TableService(
+        table_repo=_mock_table_repo, 
+        map_repo=_mock_map_repo, 
+        queue_repo=_mock_queue_repo, 
+        queue_runtime_repo=_mock_runtime_repo
     )

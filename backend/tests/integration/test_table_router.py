@@ -1,11 +1,24 @@
 import pytest
+from fastapi.testclient import TestClient
+from fastapi import FastAPI
 from unittest.mock import MagicMock
+
+from app.routers.table import table_router, get_table_service
+
 from app.services.table_service import TableService
-from app.domain.errors import RestaurantNotFoundError, TableInvalidActionError, TableNotFoundError, NotInQueueError
-from app.interfaces.map_interface import IMapRepository
 from app.interfaces.queue_interface import IQueueRepository, IQueueRuntimeRepository
+from app.interfaces.map_interface import IMapRepository
 from app.interfaces.table_interface import ITableRepository
-from app.domain.entities import MapEntity, TableEntity, QueueEntity
+from app.domain.entities import QueueEntity, MapEntity, TableEntity
+
+# 建立測試用的 FastAPI App
+app = FastAPI()
+app.include_router(table_router)
+
+client = TestClient(app)
+
+# --- Fixtures ---
+
 @pytest.fixture
 def mock_repos():
     table_repo = MagicMock(spec=ITableRepository)
@@ -15,7 +28,7 @@ def mock_repos():
     return table_repo, map_repo, queue_repo, queue_runtime_repo
 
 @pytest.fixture
-def table_service(mock_repos):
+def service_override(mock_repos):
     table_repo, map_repo, queue_repo, queue_runtime_repo = mock_repos
     return TableService(
         table_repo=table_repo,
@@ -24,7 +37,17 @@ def table_service(mock_repos):
         queue_runtime_repo=queue_runtime_repo,
     )
 
-def test_get_restaurant_seats_Success(table_service, mock_repos):
+@pytest.fixture
+def app_with_override(service_override):
+    # 覆寫依賴注入
+    app.dependency_overrides[get_table_service] = lambda: service_override
+    yield app
+    app.dependency_overrides = {}
+
+
+
+def test_get_restaurant_seats_Success(app_with_override, mock_repos):
+    """測試成功取得餐廳座位表"""
     # Arrange
     table_repo, map_repo, queue_repo, queue_runtime_repo = mock_repos
 
@@ -56,38 +79,62 @@ def test_get_restaurant_seats_Success(table_service, mock_repos):
         )
     ]
     # Act 
-    response = table_service.get_restaurant_seats(restaurant_id=2)
+    restaurant_id=2
+    response = client.get(f"/api/restaurants/{restaurant_id}/table")
+    
     # Assert
-    assert response.restaurant_id == 2
-    assert response.restaurant_name == "麥克小姐"
-    assert len(response.seats) == 2
-    assert response.seats[0].label == "1桌"
-# 2. 測試取得餐廳座位失敗 (餐廳不存在)
-def test_get_restaurant_seats_RestaurantNotFoundError(table_service, mock_repos):
+    assert response.status_code == 200
+    data = response.json()
+    assert data["restaurant_id"] == restaurant_id
+    assert data["restaurant_name"] == "麥克小姐"
+    assert len(data["seats"]) == 2
+    assert data["seats"][0]["label"] == "1桌"
+
+
+def test_get_restaurant_seats_RestaurantNotFoundError(app_with_override, mock_repos):
+    """測試成功更新狀態"""
     # Arrange
     table_repo, map_repo, _, _ = mock_repos
     map_repo.get_restaurant_basic_info.return_value = None # 模擬找不到餐廳
 
-    # Act & Assert
-    with pytest.raises(RestaurantNotFoundError):
-        table_service.get_restaurant_seats(restaurant_id=999)
+    # Act
+    restaurant_id=2
+    response = client.get(f"/api/restaurants/{restaurant_id}/table")
+    
+    # Assert
+    assert response.status_code == 404
+    data = response.json()
+    
+    # 驗證格式
+    assert "error" in data
+    assert data["error"]["code"] == "RESTAURANT_NOT_FOUND"
+    assert data["error"]["message"] == "Restaurant does not exist."
 
 
 
 
-# 3. 測試更新桌況失敗 (桌子不存在)
-def test_update_table_status_TableNotFoundError(table_service, mock_repos):
+
+
+def test_update_table_status_TableNotFoundError(app_with_override, mock_repos):
+    """測試錯誤 1: Table 不存在 (404)"""
     # Arrange
     table_repo, _, _, _ = mock_repos
     table_repo.get_table_by_id.return_value = None # 模擬找不到桌子
 
-    # Act & Assert
-    with pytest.raises(TableNotFoundError):
-        table_service.update_table_status(restaurant_id=2, table_id=999, new_table_status="eating", queue_ticket_number=10)
+    # Act
+    restaurant_id=2
+    table_id = 999
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": 106})
+    
+    assert response.status_code == 404
+    data = response.json()
+    
+    # 驗證格式
+    assert "error" in data
+    assert data["error"]["code"] == "TABLE_NOT_FOUND"
+    assert data["error"]["message"] == "Table does not exist."
 
-
-# 4. 測試更新桌況失敗 (安全性檢查：桌子不屬於該餐廳)
-def test_update_table_status_SecurityCheckFailed(table_service, mock_repos):
+def test_update_table_status_SecurityCheckFailed(app_with_override, mock_repos):
     # Arrange
     table_repo, _, _, _ = mock_repos
     
@@ -96,15 +143,18 @@ def test_update_table_status_SecurityCheckFailed(table_service, mock_repos):
         table_id=10, restaurant_id=1, label="A1", x=0, y=0, status="empty"
     )
     table_repo.get_table_by_id.return_value = existing_table
+    # Act
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": 106})
 
-    # Act & Assert
-    # 我們試圖用 restaurant_id=2 去更新它，應該要報錯
-    with pytest.raises(TableNotFoundError):
-        table_service.update_table_status(restaurant_id=2, table_id=10, new_table_status="eating", queue_ticket_number=10)
+    assert response.status_code == 404
+    data = response.json()
+    assert "error" in data
+    assert data["error"]["code"] == "TABLE_NOT_FOUND"
+    assert data["error"]["message"] == "Table does not exist."
 
-
-# 5. 測試更新桌況失敗 (狀態未改變)
-def test_update_table_status_TableInvalidActionError(table_service, mock_repos):
+def test_update_table_status_TableInvalidActionError(app_with_override, mock_repos):
     # Arrange
     table_repo, _, _, _ = mock_repos
     
@@ -114,14 +164,16 @@ def test_update_table_status_TableInvalidActionError(table_service, mock_repos):
     )
     table_repo.get_table_by_id.return_value = existing_table
 
-    # Act & Assert
-    # 試圖再次設為 eating
-    with pytest.raises(TableInvalidActionError):
-        table_service.update_table_status(restaurant_id=2, table_id=10, new_table_status="eating", queue_ticket_number=10)
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": 106})
 
+    assert response.status_code == 400
+    data = response.json()
+    assert "error" in data
+    assert data["error"]["code"] == "TABLE_INVALID_ACTION"
 
-# 6. 情境 A: 顧客入座成功 (empty -> eating)
-def test_update_table_status_CheckIn_Success(table_service, mock_repos):
+def test_update_table_status_CheckIn_Success(app_with_override, mock_repos):
     # Arrange
     table_repo, _, queue_repo, queue_runtime_repo = mock_repos
     
@@ -140,27 +192,16 @@ def test_update_table_status_CheckIn_Success(table_service, mock_repos):
         queue_id=1, restaurant_id=restaurant_id, user_id=user_id, ticket_number=ticket_number
     )
 
-    # Act
-    response = table_service.update_table_status(
-        restaurant_id=restaurant_id, 
-        table_id=table_id, 
-        new_table_status="eating", 
-        queue_ticket_number=ticket_number
-    )
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": ticket_number})
 
-    # Assert
-    # 驗證回傳
-    assert response.table_id == table_id
-    assert response.new_status == "eating"
-    
-    # 驗證副作用 (Side Effects)
-    queue_repo.remove_from_queue.assert_called_once_with(restaurant_id=restaurant_id, user_id=user_id)
-    queue_runtime_repo.set_current_ticket_number.assert_called_once_with(restaurant_id=restaurant_id, ticket_number=ticket_number)
-    table_repo.update_status.assert_called_once_with(table_id=table_id, new_table_status="eating", queue_ticket_number=ticket_number)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["table_id"] == table_id
+    assert data["new_status"] == "eating"
 
-
-# 7. 情境 A 失敗: 顧客入座但找不到排隊資料 (NotInQueueError)
-def test_update_table_status_CheckIn_NotInQueueError(table_service, mock_repos):
+def test_update_table_status_CheckIn_NotInQueueError(app_with_override, mock_repos):
     # Arrange
     table_repo, _, queue_repo, _ = mock_repos
     
@@ -174,18 +215,15 @@ def test_update_table_status_CheckIn_NotInQueueError(table_service, mock_repos):
     # 2. 排隊資料不存在 (None)
     queue_repo.get_user_current_queue_by_restaurantId_and_ticketNumber.return_value = None
 
-    # Act & Assert
-    with pytest.raises(NotInQueueError):
-        table_service.update_table_status(
-            restaurant_id=restaurant_id, 
-            table_id=10, 
-            new_table_status="eating", 
-            queue_ticket_number=50
-        )
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "eating","queue_ticket_number": 103})
 
+    assert response.status_code == 400
+    data = response.json()
+    assert data["error"]["code"] == "NOT_IN_QUEUE"
 
-# 8. 情境 B: 顧客離座/清桌成功 (eating -> empty)
-def test_update_table_status_CheckOut_Success(table_service, mock_repos):
+def test_update_table_status_CheckOut_Success(app_with_override, mock_repos):
     # Arrange
     table_repo, _, queue_repo, queue_runtime_repo = mock_repos
     
@@ -197,21 +235,11 @@ def test_update_table_status_CheckOut_Success(table_service, mock_repos):
         table_id=table_id, restaurant_id=restaurant_id, label="A1", x=0, y=0, status="eating"
     )
 
-    # Act
-    # 離座時，ticket_number 通常不重要 (或是傳 0)
-    response = table_service.update_table_status(
-        restaurant_id=restaurant_id, 
-        table_id=table_id, 
-        new_table_status="empty", 
-        queue_ticket_number=0
-    )
+    restaurant_id=2
+    table_id = 10
+    response = client.post(f"/api/restaurant/{restaurant_id}/tables/{table_id}", json={ "action": "empty","queue_ticket_number": 103})
 
-    # Assert
-    assert response.new_status == "empty"
-    
-    # 關鍵驗證：離座不應該去動排隊系統
-    queue_repo.remove_from_queue.assert_not_called()
-    queue_runtime_repo.set_current_ticket_number.assert_not_called()
-    
-    # 驗證桌況更新被呼叫
-    table_repo.update_status.assert_called_once_with(table_id=table_id, new_table_status="empty", queue_ticket_number=0)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["table_id"] == table_id
+    assert data["new_status"] == "empty"

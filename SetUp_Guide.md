@@ -30,6 +30,17 @@
     pip freeze > requirements.txt
     ```
 
+## 執行pytest測試
+```
+cd backend
+python -m pytest
+```
+## 當寫好Router後想要使用
+```
+cd backend
+uvicorn app.main:app --reload
+```
+這會跑一個server，可以去送api實際玩玩看
 # 前端
 <!-- npm init vue@latest frontend -->
 1. 先下載Node.js

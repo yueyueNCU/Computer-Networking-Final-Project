@@ -99,16 +99,16 @@ git switch -c {新的分支名稱}
     ```
     git add .
     ```
-3. 先拉取最新 dev
-    ```
-    git fetch origin
-    git merge origin/dev
-    ```
 3. 將這次修改內容放到Staged區域
     ```
     git commit -m "your comment about this push"
     ```
-4. 將這次修改上傳到github
+4. 拉取最新 dev
+    ```
+    git fetch origin
+    git merge origin/dev
+    ```
+5. 將這次修改上傳到github
     > [!NOTE]
     > 如果是初次推送或建立追蹤時用以下指令，以後都可以用最下面的
     > ```

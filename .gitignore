@@ -1,2 +1,8 @@
-/.venv
-/node_modules
+# 忽略 Python 虛擬環境
+backend/venv/
+venv/
+__pycache__/
+*.pyc
+
+# 忽略系統檔案
+.DS_Store

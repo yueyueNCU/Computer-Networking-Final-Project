@@ -7,9 +7,7 @@ import { RouterView } from 'vue-router'
 </template>
 
 <style>
-/* 這裡放置全域樣式 (Global CSS)。
-  這些設定會同時套用到客戶端和店家端。
-*/
+/* 全域設定 */
 html, body, #app {
   margin: 0;
   padding: 0;

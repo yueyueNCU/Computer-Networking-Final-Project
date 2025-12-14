@@ -1,13 +1,10 @@
-// src/router/index.ts
 import { createRouter, createWebHistory } from 'vue-router'
 
 // 1. 引入 Layout (容器)
-// 確保這兩個檔案已經建立在 src/views/ 下
 import CustomerMain from '../views/CustomerMain.vue'
 import RestaurantMain from '../views/RestaurantMain.vue'
 
 // 2. 引入頁面組件
-// 這些是你原本或主線已經有的頁面
 import HomeView from '../views/HomeView.vue'
 import QueueView from '../views/QueueView.vue'
 import SeatMap from '../components/SeatMap.vue' 
@@ -16,11 +13,11 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     // ====================================================
-    // 區域 A: 客戶端 (有底部導覽列)
+    // 區域 A: 客戶端 (使用 CustomerMain 作為佈局，包含底部導覽列)
     // ====================================================
     {
       path: '/',
-      component: CustomerMain, // 使用帶有導覽列的 Layout
+      component: CustomerMain,
       children: [
         {
           path: '', // 網址: /
@@ -36,11 +33,11 @@ const router = createRouter({
     },
 
     // ====================================================
-    // 區域 B: 店家端 (無導覽列，只有內容)
+    // 區域 B: 店家端 (使用 RestaurantMain 作為佈局)
     // ====================================================
     {
       path: '/restaurant',
-      component: RestaurantMain, // 使用你原本乾淨的 Layout
+      component: RestaurantMain,
       children: [
         {
           // 網址: /restaurant/:id/table

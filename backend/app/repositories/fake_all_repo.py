@@ -12,9 +12,9 @@ class MemoryMapRepository(IMapRepository):
             return MapEntity(
                 restaurant_id=1,
                 restaurant_name="麥克小姐",
-                lat= 24.968,
-                lng= 121.192,
-                image_url="https://example.com/burger.jpg",
+                lat= 24.963068,
+                lng= 121.190522,
+                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSx8y-lVonUobgUnS75Yz8rUT0mRzZDS78r4zbMmmbZHQXgIw-1HfXL2p_GJRamtS7MhYJw-05yaTUhubUx43izoWW6jTH8fyahL5tsGlQsnZUe_eVqqtkc8IZmyMarMpm0K9hI_=w243-h304-n-k-no-nu",
                 average_price= (150,300),
                 specialties="義大利麵、漢堡"
             )
@@ -22,11 +22,21 @@ class MemoryMapRepository(IMapRepository):
             return MapEntity(
                 restaurant_id=2,
                 restaurant_name="歐姆萊斯",
-                lat= 24.970,
-                lng= 121.195,
-                image_url="https://example.com/rice.jpg",
-                average_price= (150,300),
-                specialties="義大利麵、漢堡"
+                lat= 24.964267,
+                lng= 121.190726,
+                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSw1Zrdd2LRVUmlcJC0t8oeK7W5x7s9s0zTk15nHp5rSiGuhCsloCDXgzpU3ZcHkgaRuelR1yM4KIu6BXnNaS3BmLgGavEdLW_mXYOCJ-Y_dmN7PIeLC8vVa3GZzLKq-RuF8e3lkFqqMn4Gt=s1360-w1360-h1020-rw",
+                average_price= (85,165),
+                specialties="咖哩、豬排飯"
+            )
+        elif restaurant_id==3:
+            return MapEntity(
+                restaurant_id=3,
+                restaurant_name="香城燒臘",
+                lat= 24.964879,
+                lng= 121.193531,
+                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSw_0mtAZviH08orlPwOS9LzMfgbqvV22-6HvmS3IATLMUbBMbxkBFqSKbeZM72AKHz8VHt5eYyPqv8b6z0JiZmV4c77RRyUhTcvi7ahUcRpYOyUUfppeen9RjOlcH6r1HC5rodoewqhKxY=w408-h306-k-no",
+                average_price= (80,130),
+                specialties="蜜汁叉燒、燒肉、香腸"
             )
         else:
             return None
@@ -37,20 +47,29 @@ class MemoryMapRepository(IMapRepository):
             MapEntity(
                 restaurant_id=1,
                 restaurant_name="麥克小姐",
-                lat= 24.968,
-                lng= 121.192,
-                image_url="https://example.com/burger.jpg",
+                lat= 24.963068,
+                lng= 121.190522,
+                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSx8y-lVonUobgUnS75Yz8rUT0mRzZDS78r4zbMmmbZHQXgIw-1HfXL2p_GJRamtS7MhYJw-05yaTUhubUx43izoWW6jTH8fyahL5tsGlQsnZUe_eVqqtkc8IZmyMarMpm0K9hI_=w243-h304-n-k-no-nu",
                 average_price= (150,300),
                 specialties="義大利麵、漢堡"
             ),
             MapEntity(
                 restaurant_id=2,
                 restaurant_name="歐姆萊斯",
-                lat= 24.970,
-                lng= 121.195,
-                image_url="https://example.com/rice.jpg",
-                average_price= (150,300),
-                specialties="義大利麵、漢堡"
+                lat= 24.964267,
+                lng= 121.190726,
+                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSw1Zrdd2LRVUmlcJC0t8oeK7W5x7s9s0zTk15nHp5rSiGuhCsloCDXgzpU3ZcHkgaRuelR1yM4KIu6BXnNaS3BmLgGavEdLW_mXYOCJ-Y_dmN7PIeLC8vVa3GZzLKq-RuF8e3lkFqqMn4Gt=s1360-w1360-h1020-rw",
+                average_price= (85,165),
+                specialties="咖哩、豬排飯"
+            ),
+            MapEntity(
+                restaurant_id=3,
+                restaurant_name="香城燒臘",
+                lat= 24.964879,
+                lng= 121.193531,
+                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSw_0mtAZviH08orlPwOS9LzMfgbqvV22-6HvmS3IATLMUbBMbxkBFqSKbeZM72AKHz8VHt5eYyPqv8b6z0JiZmV4c77RRyUhTcvi7ahUcRpYOyUUfppeen9RjOlcH6r1HC5rodoewqhKxY=w408-h306-k-no",
+                average_price= (80,130),
+                specialties="蜜汁叉燒、燒肉、香腸"
             )
         ]
 # --- 2. 模擬 Queue Repository (排隊資料) ---
@@ -175,6 +194,11 @@ class MemoryQueueRuntimeRepository(IQueueRuntimeRepository):
                 "current_ticket_number": 14,
                 "next_ticket_number": 17,
                 "metrics": RestaurantMetrics(average_wait_time=8, table_number=6)
+            },
+            3: {
+                "current_ticket_number": 5,
+                "next_ticket_number": 8,
+                "metrics": RestaurantMetrics(average_wait_time=100, table_number=12)
             }
         }
 
@@ -216,7 +240,7 @@ class MemoryTableRepository(ITableRepository):
             101: TableEntity(table_id=101, restaurant_id=1, label="A1", x=1, y=1, status="eating"),
             102: TableEntity(table_id=102, restaurant_id=1, label="A2", x=2, y=1, status="empty"),
             103: TableEntity(table_id=103, restaurant_id=1, label="A3", x=3, y=1, status="eating"),
-            104: TableEntity(table_id=104, restaurant_id=1, label="A4", x=1, y=2, status="empty"),
+            104: TableEntity(table_id=104, restaurant_id=1, label="A4", x=1, y=2, status="eating"),
             105: TableEntity(table_id=105, restaurant_id=1, label="A5", x=2, y=2, status="eating"),
             
             # 餐廳 2 的桌子
@@ -224,8 +248,22 @@ class MemoryTableRepository(ITableRepository):
             202: TableEntity(table_id=202, restaurant_id=2, label="VIP2", x=3, y=1, status="eating"),
             203: TableEntity(table_id=203, restaurant_id=2, label="VIP3", x=5, y=1, status="empty"),
             204: TableEntity(table_id=204, restaurant_id=2, label="VIP4", x=1, y=3, status="eating"),
-            205: TableEntity(table_id=205, restaurant_id=2, label="VIP5", x=3, y=3, status="empty"),
-            206: TableEntity(table_id=206, restaurant_id=2, label="VIP6", x=5, y=3, status="empty"),
+            205: TableEntity(table_id=205, restaurant_id=2, label="VIP5", x=3, y=3, status="eating"),
+            206: TableEntity(table_id=206, restaurant_id=2, label="VIP6", x=5, y=3, status="eating"),
+
+            # 餐廳 3 的桌子
+            301: TableEntity(table_id=301, restaurant_id=3, label="1桌", x=1, y=1, status="empty"),
+            302: TableEntity(table_id=302, restaurant_id=3, label="2桌", x=3, y=1, status="eating"),
+            303: TableEntity(table_id=303, restaurant_id=3, label="3桌", x=5, y=1, status="empty"),
+            304: TableEntity(table_id=304, restaurant_id=3, label="4桌", x=7, y=1, status="eating"),
+            305: TableEntity(table_id=305, restaurant_id=3, label="5桌", x=1, y=3, status="empty"),
+            306: TableEntity(table_id=306, restaurant_id=3, label="6桌", x=3, y=3, status="empty"),
+            307: TableEntity(table_id=307, restaurant_id=3, label="7桌", x=5, y=3, status="empty"),
+            308: TableEntity(table_id=308, restaurant_id=3, label="8桌", x=7, y=3, status="empty"),
+            309: TableEntity(table_id=309, restaurant_id=3, label="9桌", x=1, y=5, status="empty"),
+            310: TableEntity(table_id=310, restaurant_id=3, label="10桌", x=3, y=5, status="eating"),
+            311: TableEntity(table_id=311, restaurant_id=3, label="11桌", x=5, y=6, status="empty"),
+            312: TableEntity(table_id=312, restaurant_id=3, label="12桌", x=7, y=6, status="empty"),
         }
 
     def get_tables_by_restaurant(self, restaurant_id: int) -> List[TableEntity]:
@@ -260,6 +298,12 @@ class MemoryTableRepository(ITableRepository):
             self._tables[table_id].status = new_table_status
             return True
         return False
+    def get_restaurant_remaining_table(self, restaurant_id: int) -> int:
+        count = 0
+        for table in self._tables.values():
+            if table.restaurant_id == restaurant_id and table.status == "empty":
+                count += 1
+        return count
 # --- 4. 組合包：產生 Fake Service 的工廠函數 ---
 # 這些變數放在全域，確保所有 Request 共用同一份記憶體資料
 _mock_map_repo = MemoryMapRepository()
@@ -284,6 +328,7 @@ def get_memory_map_service():
     """
     return MapService(
         map_repo=_mock_map_repo,
+        table_repo=_mock_table_repo,
         queue_repo=_mock_queue_repo,
         queue_runtime_repo=_mock_runtime_repo
     )

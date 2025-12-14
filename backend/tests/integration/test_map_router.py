@@ -8,6 +8,7 @@ from app.routers.map import map_router, get_map_service
 from app.services.map_service import MapService
 from app.interfaces.map_interface import IMapRepository
 from app.interfaces.queue_interface import IQueueRepository,IQueueRuntimeRepository
+from app.interfaces.table_interface import ITableRepository
 from app.domain.value_objects import RestaurantMetrics
 from app.domain.entities import MapEntity
 # 1. 建立測試用的 FastAPI App 並掛載 Router
@@ -27,7 +28,8 @@ def mock_repos():
     queue_repo = MagicMock(spec=IQueueRepository)
     queue_runtime_repo = MagicMock(spec=IQueueRuntimeRepository)
     map_repo = MagicMock(spec=IMapRepository)
-    return map_repo, queue_repo, queue_runtime_repo
+    table_repo = MagicMock(spec=ITableRepository)
+    return map_repo, table_repo , queue_repo, queue_runtime_repo
 
 @pytest.fixture
 def service_override(mock_repos):
@@ -35,9 +37,10 @@ def service_override(mock_repos):
     負責初始化 Service，並自動注入 mock_repos。
     測試函式只需要請求這個 fixture，就可以拿到已經裝好 Mock 的 Service。
     """
-    map_repo, queue_repo, queue_runtime_repo = mock_repos
+    map_repo, table_repo, queue_repo, queue_runtime_repo = mock_repos
     return MapService(
         map_repo=map_repo,
+        table_repo=table_repo,
         queue_repo=queue_repo,
         queue_runtime_repo=queue_runtime_repo
     )
@@ -56,7 +59,7 @@ def app_with_map_override(service_override):
 # --- Test Cases (測試案例) ---
 
 def test_get_restaurants_success(app_with_map_override, mock_repos):
-    mock_map_repo, mock_queue_repo, mock_queue_runtime_repo = mock_repos
+    mock_map_repo, mock_table_repo, mock_queue_repo, mock_queue_runtime_repo = mock_repos
     """
     測試 GET /api/restaurants 是否成功回傳 200 以及正確的資料格式
     """
@@ -85,8 +88,9 @@ def test_get_restaurants_success(app_with_map_override, mock_repos):
     
     # 設定 Mock Repo 的行為：當被呼叫 get_all_restaurants 時，回傳上面的假資料
     mock_map_repo.get_all_restaurants.return_value = fake_db_data
-    mock_queue_repo.get_total_waiting.return_value = 19
-    mock_queue_runtime_repo.get_metrics.return_value = RestaurantMetrics(average_wait_time=15,table_number=20)
+    mock_queue_repo.get_total_waiting.return_value = 3
+    mock_table_repo.get_restaurant_remaining_table.return_value = 8
+    mock_queue_runtime_repo.get_metrics.return_value = RestaurantMetrics(average_wait_time=15, table_number=10)
     # 2. Act (執行請求)
     # 這裡的網址必須對應 router 設定的 prefix + path
     response = client.get("/api/restaurants")
@@ -100,7 +104,7 @@ def test_get_restaurants_success(app_with_map_override, mock_repos):
     assert isinstance(data, list)
     assert len(data) == 2
     assert data[0]["restaurant_name"] == "麥克小姐"
-    assert data[1]["status"] == "red"
+    assert data[1]["status"] == "yellow"
 
     # 驗證 Service 是否真的有去呼叫 Repository
     mock_map_repo.get_all_restaurants.assert_called_once()

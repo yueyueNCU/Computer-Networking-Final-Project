@@ -73,7 +73,9 @@ class ITableRepository(ABC):
             Dict: 更新後的座位資料
         """
         pass
-
+    @abstractmethod
+    def get_restaurant_remaining_table(self, restaurant_id: int) -> int:
+        pass
 """
 以下是Seat表格，可參考
 

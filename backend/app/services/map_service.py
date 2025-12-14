@@ -2,11 +2,13 @@ from typing import List
 from app.interfaces.map_interface import IMapRepository, IMapService
 from app.schemas.map_schema import RestaurantItem
 from app.interfaces.queue_interface import IQueueRepository,IQueueRuntimeRepository
+from app.interfaces.table_interface import ITableRepository
 
 class MapService(IMapService):
-    def __init__(self, map_repo: IMapRepository,queue_repo: IQueueRepository, queue_runtime_repo: IQueueRuntimeRepository):
+    def __init__(self, map_repo: IMapRepository, table_repo: ITableRepository, queue_repo: IQueueRepository, queue_runtime_repo: IQueueRuntimeRepository):
         # 依賴注入：這裡只認得 IMapRepository 定義過的 function
         self.map_repo = map_repo
+        self.table_repo=table_repo
         self.queue_repo = queue_repo
         self.queue_runtime_repo = queue_runtime_repo
 
@@ -19,10 +21,11 @@ class MapService(IMapService):
         for item in restaurants:
             status = "green"
             total_waiting = self.queue_repo.get_total_waiting(item.restaurant_id)
-            table_number = (self.queue_runtime_repo.get_metrics(item.restaurant_id)).table_number
-            if total_waiting >= table_number*0.8:
+            remaining_table_number = self.table_repo.get_restaurant_remaining_table(item.restaurant_id)
+            table_number = self.queue_runtime_repo.get_metrics(restaurant_id=item.restaurant_id).table_number
+            if (remaining_table_number-total_waiting) <= table_number*0.2:
                 status="red"
-            elif total_waiting >= table_number*0.6:
+            elif (remaining_table_number-total_waiting) <= table_number*0.5:
                 status="yellow"
             else:
                 status="green"

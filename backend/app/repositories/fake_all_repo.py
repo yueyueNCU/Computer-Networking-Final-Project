@@ -215,9 +215,17 @@ class MemoryTableRepository(ITableRepository):
             # 餐廳 1 的桌子
             101: TableEntity(table_id=101, restaurant_id=1, label="A1", x=1, y=1, status="eating"),
             102: TableEntity(table_id=102, restaurant_id=1, label="A2", x=2, y=1, status="empty"),
+            103: TableEntity(table_id=103, restaurant_id=1, label="A3", x=3, y=1, status="eating"),
+            104: TableEntity(table_id=104, restaurant_id=1, label="A4", x=1, y=2, status="empty"),
+            105: TableEntity(table_id=105, restaurant_id=1, label="A5", x=2, y=2, status="eating"),
+            
             # 餐廳 2 的桌子
             201: TableEntity(table_id=201, restaurant_id=2, label="VIP1", x=1, y=1, status="empty"),
-            202: TableEntity(table_id=202, restaurant_id=2, label="VIP2", x=2, y=2, status="eating"),
+            202: TableEntity(table_id=202, restaurant_id=2, label="VIP2", x=3, y=1, status="eating"),
+            203: TableEntity(table_id=203, restaurant_id=2, label="VIP3", x=5, y=1, status="empty"),
+            204: TableEntity(table_id=204, restaurant_id=2, label="VIP4", x=1, y=3, status="eating"),
+            205: TableEntity(table_id=205, restaurant_id=2, label="VIP5", x=3, y=3, status="empty"),
+            206: TableEntity(table_id=206, restaurant_id=2, label="VIP6", x=5, y=3, status="empty"),
         }
 
     def get_tables_by_restaurant(self, restaurant_id: int) -> List[TableEntity]:

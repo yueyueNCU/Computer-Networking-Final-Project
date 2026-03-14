@@ -14,7 +14,7 @@ class MemoryMapRepository(IMapRepository):
                 restaurant_name="麥克小姐",
                 lat= 24.963068,
                 lng= 121.190522,
-                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSx8y-lVonUobgUnS75Yz8rUT0mRzZDS78r4zbMmmbZHQXgIw-1HfXL2p_GJRamtS7MhYJw-05yaTUhubUx43izoWW6jTH8fyahL5tsGlQsnZUe_eVqqtkc8IZmyMarMpm0K9hI_=w243-h304-n-k-no-nu",
+                image_url="/imgs/麥克小姐.png",
                 average_price= (150,300),
                 specialties="義大利麵、漢堡"
             )
@@ -24,7 +24,7 @@ class MemoryMapRepository(IMapRepository):
                 restaurant_name="歐姆萊斯",
                 lat= 24.964267,
                 lng= 121.190726,
-                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSw1Zrdd2LRVUmlcJC0t8oeK7W5x7s9s0zTk15nHp5rSiGuhCsloCDXgzpU3ZcHkgaRuelR1yM4KIu6BXnNaS3BmLgGavEdLW_mXYOCJ-Y_dmN7PIeLC8vVa3GZzLKq-RuF8e3lkFqqMn4Gt=s1360-w1360-h1020-rw",
+                image_url="/imgs/歐姆萊斯.png",
                 average_price= (85,165),
                 specialties="咖哩、豬排飯"
             )
@@ -34,7 +34,7 @@ class MemoryMapRepository(IMapRepository):
                 restaurant_name="香城燒臘",
                 lat= 24.964879,
                 lng= 121.193531,
-                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSw_0mtAZviH08orlPwOS9LzMfgbqvV22-6HvmS3IATLMUbBMbxkBFqSKbeZM72AKHz8VHt5eYyPqv8b6z0JiZmV4c77RRyUhTcvi7ahUcRpYOyUUfppeen9RjOlcH6r1HC5rodoewqhKxY=w408-h306-k-no",
+                image_url="/imgs/香城燒臘.png",
                 average_price= (80,130),
                 specialties="蜜汁叉燒、燒肉、香腸"
             )
@@ -49,7 +49,7 @@ class MemoryMapRepository(IMapRepository):
                 restaurant_name="麥克小姐",
                 lat= 24.963068,
                 lng= 121.190522,
-                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSx8y-lVonUobgUnS75Yz8rUT0mRzZDS78r4zbMmmbZHQXgIw-1HfXL2p_GJRamtS7MhYJw-05yaTUhubUx43izoWW6jTH8fyahL5tsGlQsnZUe_eVqqtkc8IZmyMarMpm0K9hI_=w243-h304-n-k-no-nu",
+                image_url="/imgs/麥克小姐.png",
                 average_price= (150,300),
                 specialties="義大利麵、漢堡"
             ),
@@ -58,7 +58,7 @@ class MemoryMapRepository(IMapRepository):
                 restaurant_name="歐姆萊斯",
                 lat= 24.964267,
                 lng= 121.190726,
-                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSw1Zrdd2LRVUmlcJC0t8oeK7W5x7s9s0zTk15nHp5rSiGuhCsloCDXgzpU3ZcHkgaRuelR1yM4KIu6BXnNaS3BmLgGavEdLW_mXYOCJ-Y_dmN7PIeLC8vVa3GZzLKq-RuF8e3lkFqqMn4Gt=s1360-w1360-h1020-rw",
+                image_url="/imgs/歐姆萊斯.png",
                 average_price= (85,165),
                 specialties="咖哩、豬排飯"
             ),
@@ -67,7 +67,7 @@ class MemoryMapRepository(IMapRepository):
                 restaurant_name="香城燒臘",
                 lat= 24.964879,
                 lng= 121.193531,
-                image_url="https://lh3.googleusercontent.com/gps-cs-s/AG0ilSw_0mtAZviH08orlPwOS9LzMfgbqvV22-6HvmS3IATLMUbBMbxkBFqSKbeZM72AKHz8VHt5eYyPqv8b6z0JiZmV4c77RRyUhTcvi7ahUcRpYOyUUfppeen9RjOlcH6r1HC5rodoewqhKxY=w408-h306-k-no",
+                image_url="/imgs/香城燒臘.png",
                 average_price= (80,130),
                 specialties="蜜汁叉燒、燒肉、香腸"
             )

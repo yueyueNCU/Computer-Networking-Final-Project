@@ -1,11 +1,84 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { RouterView, RouterLink } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+const userIdInput = ref('')
+const inputError = ref('')
+
+const showUserIdOverlay = computed(() => userStore.userId == null)
+
+function submitUserId() {
+  // #region agent log
+  fetch('http://127.0.0.1:7545/ingest/a962af08-672b-4568-a06a-7b03bb8b9125', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '0666a0' },
+    body: JSON.stringify({
+      sessionId: '0666a0',
+      location: 'CustomerMain.vue:submitUserId',
+      message: 'submitUserId entry',
+      data: {
+        valueType: typeof userIdInput.value,
+        value: userIdInput.value,
+        hasTrim: typeof (userIdInput.value && userIdInput.value.trim) === 'function',
+      },
+      timestamp: Date.now(),
+      hypothesisId: 'A',
+    }),
+  }).catch(() => {})
+  // #endregion
+  inputError.value = ''
+  const raw = String(userIdInput.value ?? '').trim()
+  if (!raw) {
+    inputError.value = '請輸入 User ID'
+    return
+  }
+  const n = parseInt(raw, 10)
+  if (Number.isNaN(n) || n < 1 || !Number.isInteger(n)) {
+    inputError.value = '請輸入正整數'
+    return
+  }
+  userStore.setUserId(n)
+  userIdInput.value = ''
+}
+
+function switchUserId() {
+  userStore.clearUserId()
+  userIdInput.value = ''
+  inputError.value = ''
+}
 </script>
 
 <template>
   <div class="app-layout">
+    <!-- 未設定 user_id 時顯示輸入遮罩 -->
+    <div v-if="showUserIdOverlay" class="user-id-overlay">
+      <div class="user-id-card">
+        <h3>測試用身份</h3>
+        <p class="hint">請輸入 User ID（多分頁可輸入不同 ID 測試多人邏輯）</p>
+        <input
+          v-model="userIdInput"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="例如 1"
+          class="user-id-input"
+          @keydown.enter="submitUserId"
+        />
+        <p v-if="inputError" class="input-error">{{ inputError }}</p>
+        <button type="button" class="btn-confirm-id" @click="submitUserId">確認</button>
+      </div>
+    </div>
+
     <div class="main-content">
       <RouterView />
+    </div>
+
+    <!-- 已設定時顯示目前測試 ID，可更換 -->
+    <div v-if="userStore.userId != null" class="test-user-badge">
+      <span>測試 User ID: {{ userStore.userId }}</span>
+      <button type="button" class="btn-switch-id" @click="switchUserId">更換</button>
     </div>
 
     <nav class="bottom-nav">
@@ -84,5 +157,96 @@ html,
   color: #ff9800;
   font-weight: bold;
   background-color: #fff8e1; /* (選用) 加一點淡黃色背景讓選取狀態更明顯 */
+}
+
+/* 測試用 User ID 輸入遮罩 */
+.user-id-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(4px);
+}
+.user-id-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 320px;
+  text-align: center;
+}
+.user-id-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  color: #333;
+}
+.user-id-card .hint {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0 0 16px;
+  line-height: 1.4;
+}
+.user-id-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  font-size: 1.1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.user-id-input:focus {
+  outline: none;
+  border-color: #ff9800;
+}
+.input-error {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: #c62828;
+}
+.btn-confirm-id {
+  width: 100%;
+  padding: 12px;
+  background: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.btn-confirm-id:hover {
+  background: #f57c00;
+}
+.test-user-badge {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #666;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.btn-switch-id {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  color: #ff9800;
+  background: transparent;
+  border: 1px solid #ff9800;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-switch-id:hover {
+  background: #fff3e0;
 }
 </style>

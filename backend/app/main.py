@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from app.routers import map
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
 
@@ -20,6 +21,11 @@ app = FastAPI(
     description="目前使用記憶體模擬資料庫，重啟後資料會重置",
     version="0.1.0"
 )
+
+# 提供餐廳圖片靜態檔（掛在 /imgs）
+_imgs_dir = os.path.join(os.path.dirname(__file__), "imgs")
+if os.path.isdir(_imgs_dir):
+    app.mount("/imgs", StaticFiles(directory=_imgs_dir), name="imgs")
 
 origins = [
     "http://localhost:5173",

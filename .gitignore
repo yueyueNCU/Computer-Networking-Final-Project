@@ -6,3 +6,6 @@ __pycache__/
 
 # 忽略系統檔案
 .DS_Store
+
+.cursor/
+node_modules/

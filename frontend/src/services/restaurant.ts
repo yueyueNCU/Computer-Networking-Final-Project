@@ -8,7 +8,7 @@ import type {
   SeatDetail, // 來自 HEAD (保留)
 } from '@/types/RestaurantApi'
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = 'http://localhost:8000/api'
 
 // =======================
 // Part 1: 客戶端 API (Client Side)
@@ -65,7 +65,7 @@ export async function leaveQueue(restaurantId: number, userId: number): Promise<
     const errorData = await response.json().catch(() => ({}))
     const error = new Error(errorData.error?.message || '取消排隊失敗')
     // 保留隊友的錯誤代碼處理邏輯
-    ;(error as any).code = errorData.error?.code 
+    ;(error as any).code = errorData.error?.code
     throw error
   }
 }
@@ -76,42 +76,41 @@ export async function leaveQueue(restaurantId: number, userId: number): Promise<
 
 // 1. 取得座位表
 export async function getSeats(restaurantId: number): Promise<SeatDetail[]> {
-  const response = await fetch(`${API_BASE}/restaurants/${restaurantId}/table`);
-  
+  const response = await fetch(`${API_BASE}/restaurants/${restaurantId}/table`)
+
   if (!response.ok) {
-    console.error("無法取得座位資料");
-    return [];
+    console.error('無法取得座位資料')
+    return []
   }
-  
-  const data = await response.json();
-  return data.seats || []; 
+
+  const data = await response.json()
+  return data.seats || []
 }
 
 // 2. 查詢下組叫號資訊
 export async function getNextQueueInfo(restaurantId: number) {
-  const response = await fetch(`${API_BASE}/restaurants/${restaurantId}/queue/next`);
+  const response = await fetch(`${API_BASE}/restaurants/${restaurantId}/queue/next`)
   if (!response.ok) {
-    return null;
+    return null
   }
-  return await response.json();
+  return await response.json()
 }
 
 // 3. 更新座位狀態 (入座/離座)
 export async function updateTableStatus(
-  restaurantId: number, 
-  tableId: number, 
+  restaurantId: number,
+  tableId: number,
   action: 'eating' | 'empty',
-  ticketNumber: number = 0 
+  ticketNumber: number = 0,
 ): Promise<boolean> {
-  
   const response = await fetch(`${API_BASE}/restaurant/${restaurantId}/tables/${tableId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       action: action,
-      queue_ticket_number: ticketNumber
-    }) 
-  });
+      queue_ticket_number: ticketNumber,
+    }),
+  })
 
-  return response.ok;
+  return response.ok
 }

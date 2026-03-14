@@ -7,6 +7,7 @@ import { LMap, LTileLayer } from '@vue-leaflet/vue-leaflet'
 import type { RestaurantItem, QueueStatusResponse, JoinQueueResponse } from '@/types/RestaurantApi'
 import { getRestaurants, getQueueStatus, joinQueue } from '@/services/restaurant'
 import MapMarker from '@/components/MapMarker.vue'
+import { useUserStore } from '@/stores/user'
 
 // 資料狀態
 const restaurants = ref<RestaurantItem[]>([])
@@ -14,12 +15,16 @@ const isLoading = ref(false)
 const lastUpdated = ref('')
 const cardRefs = ref<Record<number, HTMLElement>>({})
 const router = useRouter()
+const userStore = useUserStore()
+
+const API_ORIGIN = 'http://localhost:8000'
+function restaurantImageSrc(url: string | undefined) {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `${API_ORIGIN}${url}`
+}
 
 // 紀錄目前被選中的餐廳 ID (拿來變色用)
 const selectedId = ref<number | null>(null)
-
-// 模擬要加入排隊的使用者 ID，這裡可能要用隨機生成而且不重複的亂數?
-const currentUserId = 25
 
 // 地圖設定
 const zoom = ref(15)
@@ -87,13 +92,17 @@ const handleJoinQueue = async (restaurant: RestaurantItem) => {
 const confirmQueue = async () => {
   if (pendingQueueInfo.value) {
     const { restaurant } = pendingQueueInfo.value
+    const userId = userStore.userId
+    if (userId == null) {
+      alert('請先設定測試用 User ID')
+      return
+    }
 
     try {
       document.body.style.cursor = 'wait'
-      const currentUserId = 25
 
       // 呼叫 API
-      const response = await joinQueue(restaurant.restaurant_id, currentUserId)
+      const response = await joinQueue(restaurant.restaurant_id, userId)
 
       // 成功邏輯
       successQueueInfo.value = response
@@ -222,7 +231,7 @@ const getStatusLabel = (status: string) => {
           @click="selectedId = item.restaurant_id"
         >
           <div class="card-img-wrapper">
-            <img :src="item.image_url" class="card-img" alt="餐廳圖片" />
+            <img :src="restaurantImageSrc(item.image_url)" class="card-img" alt="餐廳圖片" />
           </div>
 
           <div class="card-info">

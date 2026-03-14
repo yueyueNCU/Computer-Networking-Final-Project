@@ -7,7 +7,7 @@ import RestaurantMain from '../views/RestaurantMain.vue'
 // 2. 引入頁面組件
 import HomeView from '../views/HomeView.vue'
 import QueueView from '../views/QueueView.vue'
-import SeatMap from '../components/SeatMap.vue' 
+import SeatMap from '../components/SeatMap.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -42,12 +42,12 @@ const router = createRouter({
         {
           // 網址: /restaurant/:id/table
           // 例如: /restaurant/1/table
-          path: ':id/table', 
+          path: ':id/table',
           name: 'seat-map',
-          component: SeatMap
-        }
-      ]
-    }
+          component: SeatMap,
+        },
+      ],
+    },
   ],
 })
 
